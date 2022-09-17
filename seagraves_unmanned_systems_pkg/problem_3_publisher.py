@@ -24,26 +24,33 @@ class CmdVelPublisher(Node):
         
     def move(self, speed: float, duration: float):
         now: float = time.perf_counter()
+        self.publish_speed(speed)
+        rclpy.spin_once(self, timeout_sec=0.1)
         while time.perf_counter() < now + duration:
-            self.publish_speed(speed)
-            rclpy.spin_once(self, timeout_sec=0.1)
+            continue
+        # self.publish_speed(0.0)
+        # rclpy.spin_once(self, timeout_sec=0.1)
 
     def turn(self, rotation: float, duration: float):
         now: float = time.perf_counter()
+        self.publish_rotation(rotation)
+        rclpy.spin_once(self, timeout_sec=0.1)
         while time.perf_counter() < now + duration:
-            self.publish_rotation(rotation)
-            rclpy.spin_once(self, timeout_sec=0.1)
+            continue
+        self.publish_rotation(0.0)
+        rclpy.spin_once(self, timeout_sec=0.1)
 
 def main():
     rclpy.init()
 
     publisher_node = CmdVelPublisher()
     
-    publisher_node.move(1.5, 5.0)
-    publisher_node.turn(-.15, 2)
-    publisher_node.move(1.5, 5.0)
-    
-    publisher_node.publish_speed(0.0)
+    while rclpy.ok():
+        publisher_node.move(1.5, 5.0)
+        publisher_node.turn(-.15, 2)
+        publisher_node.move(1.5, 5.0)
+        publisher_node.publish_speed(0.0)
+        break
 
     publisher_node.destroy_node()
     rclpy.shutdown()
