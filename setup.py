@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            "publisher_node = seagraves_unmanned_systems_pkg.problem_3_node:main",
+            "publisher_node = seagraves_unmanned_systems_pkg.problem_3_publisher:main",
+            "subscriber_node = seagraves_unmanned_systems_pkg.problem_3_subscriber:main",
         ],
     },
 )

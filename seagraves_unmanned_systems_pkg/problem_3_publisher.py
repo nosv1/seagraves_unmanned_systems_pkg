@@ -5,7 +5,7 @@ from geometry_msgs.msg import Twist
 import rclpy
 from rclpy.node import Node
 
-class Problem3Node(Node):
+class CmdVelPublisher(Node):
     def __init__(self):
         super().__init__('publisher_node')
         self.publisher_ = self.create_publisher(Twist, "/cmd_vel", 10)
@@ -37,7 +37,7 @@ class Problem3Node(Node):
 def main():
     rclpy.init()
 
-    publisher_node = Problem3Node()
+    publisher_node = CmdVelPublisher()
     
     publisher_node.move(1.5, 5.0)
     publisher_node.turn(-.15, 2)
