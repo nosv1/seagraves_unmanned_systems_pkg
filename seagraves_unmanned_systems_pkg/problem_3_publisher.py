@@ -1,5 +1,3 @@
-import time
-
 from geometry_msgs.msg import Twist
 import rclpy
 from rclpy.node import Node
@@ -21,8 +19,9 @@ class CmdVelPublisher(Node):
         self.get_logger().info(f"Publishing rotation: {rotation}")
         
     def move(self, speed: float, duration: float, stop: bool = False):
-        now = time.perf_counter()
-        while time.perf_counter() - now < duration:
+        duration_ns: float = duration * 1e9
+        now_ns: float = self.get_clock().now().nanoseconds
+        while self.get_clock().now().nanoseconds - now_ns < duration_ns:
             self.publish_speed(speed)
             rclpy.spin_once(self, timeout_sec=0.1)
         if stop:
@@ -30,8 +29,9 @@ class CmdVelPublisher(Node):
             rclpy.spin_once(self, timeout_sec=0.1)
 
     def turn(self, rotation: float, duration: float, stop: bool = False):
-        now = time.perf_counter()
-        while time.perf_counter() - now < duration:
+        duration_ns: float = duration * 1e9
+        now_ns: float = self.get_clock().now().nanoseconds
+        while self.get_clock().now().nanoseconds - now_ns < duration_ns:
             self.publish_rotation(rotation)
             rclpy.spin_once(self, timeout_sec=0.1)
         if stop:
