@@ -22,7 +22,7 @@ setup(
         'console_scripts': [
             "publisher_node = seagraves_unmanned_systems_pkg.problem_3_publisher:main",
             "subscriber_node = seagraves_unmanned_systems_pkg.problem_3_subscriber:main",
-            "PID = seagraves_unmanned_systems_pkg.PID:main",
+            "command_controller = seagraves_unmanned_systems_pkg.command_controller:main",
         ],
     },
 )
