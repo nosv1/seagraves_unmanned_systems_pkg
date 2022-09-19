@@ -40,6 +40,9 @@ class Command:
         self.published: bool = False
 
     def execute(self, msg: Twist, stop=False) -> Twist:
+        """
+        Updates the msg with the command's values or 0.0 if stop is True
+        """
         if self.speed is not None:
             msg.linear.x = self.speed if not stop else 0.0
 
@@ -51,12 +54,17 @@ class CommandController(Node):
     def __init__(self, commands: list[Command]) -> None:
         super().__init__("CommandController")
 
+        # knowing the start and stop_ns allows us to know when to switch to the next command
+        # this assumes our commands are time based and not position based
         self.commands = commands
         self.commands[0].start_ns = self.get_clock().now().nanoseconds
         self.commands[0].stop_ns = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
 
+        # initialize subscriber and publisher
         self.subscriber = self.create_subscription(Odometry, "/odom", self.callback, 10)
         self.publisher = self.create_publisher(Twist, "/cmd_vel", 10)
+
+        # intialize the Twist() message
         self.msg = Twist()
 
     def publish(self) -> None:
@@ -74,24 +82,29 @@ class CommandController(Node):
         self.get_logger().info(f"Position: [{position.x:.2f}, {position.y:.2f}, {position.z:.2f}]")
         self.get_logger().info(f"Rotation: [{rotation[0]:.2f}, {rotation[1]:.2f}, {rotation[2]:.2f}]")
 
+        # check if we need to switch to the next command
         if self.commands[0].stop_ns > self.get_clock().now().nanoseconds:
+            # check if we've not published the command yet
             if not self.commands[0].published:
                 self.msg = self.commands[0].execute(self.msg)
                 self.publish()
                 self.commands[0].published = True
 
+        # switch to the next command
         else:
+            # check if we need to 'revert' the command's values to 0
             if self.commands[0].stop_at_end:
                 self.msg = self.commands[0].execute(self.msg, stop=True)
                 self.publish()
 
+            # pop the current command and set the next command's start_ns and stop_ns
             if (len(self.commands) > 1):
                 self.commands.pop(0)
                 self.commands[0].start_ns = self.get_clock().now().nanoseconds
                 self.commands[0].stop_ns = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
 
             else:
-                self.destroy_node()
+                self.commands.pop(0)
 
 def main():
     rclpy.init()
@@ -104,7 +117,8 @@ def main():
 
     pid = CommandController(commands)
 
-    while rclpy.ok():
+    # check if pid is alive
+    while pid.commands:
         rclpy.spin_once(pid)
 
     rclpy.shutdown()
