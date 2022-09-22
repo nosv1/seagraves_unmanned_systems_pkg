@@ -1,43 +1,46 @@
 from __future__ import annotations
 
+# python imports
+from math import pi
+
+# ros imports
 from geometry_msgs.msg import Point, Quaternion, Twist
-import math
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
+from rclpy.subscription import Subscription
+from rclpy.publisher import Publisher
 
-def euler_from_quaternion(x:float, y:float, z:float, w:float) -> tuple[float]:
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-     
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-     
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-     
-        return roll_x, pitch_y, yaw_z # in radians
+# personal imports
+from support_module.Logger import Logger
+from support_module.PID import PID
+from support_module.quaternion_tools import euler_from_quaternion
+
 
 class Command:
-    def __init__(self, duration: float, speed: float=None, radians: float=None, stop_at_end: bool=False):
-        self.duration = duration
-        self.speed = speed
-        self.radians = radians
-        self.stop_at_end = stop_at_end
+    def __init__(self, duration: float, speed: float=None, radians: float=None, heading: float=None, stop_at_end: bool=False):
+        """
+        Set duration to 0 to use a PID controller
+        :param duration: time in seconds to execute the command
+        :param speed: speed in m/s
+        :param radians: radians per second
+        :param heading: heading in degrees (0-360)
+        """
+        self.duration = duration        # if 0 then use PID
+        self.speed = speed              # desired m/s
+        self.radians = radians          # desired rad/s
+        self.heading = heading * pi / 180.0 if heading is not None else heading
+        self.stop_at_end = stop_at_end  # revert to 0 at the end of the command
+
+        self.use_pid: bool = self.duration == 0
+        self.start_error: float = 0
+        self.stop_error: float = 0
 
         self.start_ns: int = None
         self.stop_ns: int = None
+
         self.published: bool = False
+        self.completed: bool = False
 
     def execute(self, msg: Twist, stop=False) -> Twist:
         """
@@ -46,52 +49,123 @@ class Command:
         if self.speed is not None:
             msg.linear.x = self.speed if not stop else 0.0
 
-        if self.radians is not None:
-            msg.angular.z = self.radians if not stop else 0.0
+        if self.radians is not None or self.heading is not None:
+            if self.radians is not None:
+                msg.angular.z = self.radians if not stop else 0.0
+            elif self.heading is not None:
+                msg.angular.z = msg.angular.z if not stop else 0.0
         return msg
 
-class CommandController(Node):
-    def __init__(self, commands: list[Command]) -> None:
+class Waypoint:
+    def __init__(
+        self, 
+        x: float, 
+        y: float, 
+        arrived_at_waypoint_raduis: float=0.1
+    ):
+        self.x = x
+        self.y = y
+        self.arrived_at_waypoint_radius = arrived_at_waypoint_raduis
+
+class Controller(Node):
+    def __init__(self, commands: list[Command] = None, waypoints: list[Waypoint]=None) -> None:
         super().__init__("CommandController")
 
-        # knowing the start and stop_ns allows us to know when to switch to the next command
-        # this assumes our commands are time based and not position based
-        self.commands = commands
-        self.commands[0].start_ns = self.get_clock().now().nanoseconds
-        self.commands[0].stop_ns = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
+        if commands:
+            # knowing the start and stop_ns allows us to know when to switch to the next command
+            # this assumes our commands are time based and not position based
+            self.commands = commands
+            self.commands[0].start_ns: int = self.get_clock().now().nanoseconds
+            self.commands[0].stop_ns: int = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
+
+            self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
+            self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
+            
+        elif waypoints:
+            self.waypoints = waypoints
+
+            self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
         # initialize subscriber and publisher
-        self.subscriber = self.create_subscription(Odometry, "/odom", self.callback, 10)
-        self.publisher = self.create_publisher(Twist, "/cmd_vel", 10)
+        self.subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.callback, 10)
+        self.publisher: Publisher = self.create_publisher(Twist, "/cmd_vel", 10)
 
         # intialize the Twist() message
-        self.msg = Twist()
+        self.msg: Twist = Twist()
+
+        self.pid: PID = PID(kp=6.5, ki=0, kd=0)
+        self.previous_time: int = self.get_clock().now().nanoseconds
+        self.current_time: int = self.get_clock().now().nanoseconds
+        self.dt: float = 0.0
+
 
     def publish(self) -> None:
-        self.get_logger().info(f"Publishing Linear: [{self.msg.linear.x:.2f}, {self.msg.linear.y:.2f}, {self.msg.linear.z:.2f}]")
-        self.get_logger().info(f"Publishing Angular: [{self.msg.angular.x:.2f}, {self.msg.angular.y:.2f}, {self.msg.angular.z:.2f}]")
+        self.command_logger.log([
+            self.get_clock().now().nanoseconds / 1e9, 
+            self.msg.linear.x, 
+            self.msg.linear.y, 
+            self.msg.linear.z, 
+            self.msg.angular.x, 
+            self.msg.angular.y, 
+            self.msg.angular.z
+        ])
         
         self.publisher.publish(self.msg)
-        rclpy.spin_once(self, timeout_sec=0.1)
 
     def callback(self, msg: Odometry) -> None:
+        self.previous_time = self.current_time
+        self.current_time = self.get_clock().now().nanoseconds
+        self.dt = (self.current_time - self.previous_time) / 1e9
+        
         position: Point = msg.pose.pose.position
         orientation: Quaternion = msg.pose.pose.orientation
-        rotation: tuple[float] = euler_from_quaternion(orientation.x, orientation.y, orientation.z, orientation.w)
+        self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation.x, orientation.y, orientation.z, orientation.w)
 
-        self.get_logger().info(f"Position: [{position.x:.2f}, {position.y:.2f}, {position.z:.2f}]")
-        self.get_logger().info(f"Rotation: [{rotation[0]:.2f}, {rotation[1]:.2f}, {rotation[2]:.2f}]")
+        self.pose_logger.log([
+            self.get_clock().now().nanoseconds / 1e9, 
+            position.x, 
+            position.y, 
+            position.z, 
+            self.roll * 180 / pi, 
+            self.pitch * 180 / pi, 
+            self.yaw * 180 / pi
+        ])
+
+        if self.commands:
+            self.command_update()
+        elif self.waypoints:
+            self.waypoint_update()
+
+    def command_update(self) -> None:
 
         # check if we need to switch to the next command
-        if self.commands[0].stop_ns > self.get_clock().now().nanoseconds:
+        self.commands[0].completed = self.commands[0].completed or self.commands[0].stop_ns < self.get_clock().now().nanoseconds
+        self.commands[0].completed = self.commands[0].completed or (self.commands[0].use_pid and abs(self.pid.prev_error) < abs(self.commands[0].stop_error))
+        if not self.commands[0].completed:
+
+            if self.commands[0].use_pid:
+                if self.commands[0].heading is not None:
+                    self.msg = self.commands[0].execute(self.msg, stop=False)
+                    # clamp pid output to max/min turnrate of the robot
+                    self.msg.angular.z = max(
+                        min(self.pid.update(self.commands[0].heading, self.yaw, self.dt), 2.84),
+                        -2.84
+                    )
+                    if not self.commands[0].start_error:
+                        self.commands[0].start_error = self.pid.prev_error
+                        self.commands[0].stop_error = self.commands[0].start_error * 0.0001
+                    self.heading_logger.log([self.get_clock().now().nanoseconds, self.commands[0].heading, self.yaw])
+                    self.publish()
+
             # check if we've not published the command yet
-            if not self.commands[0].published:
+            elif not self.commands[0].published:
                 self.msg = self.commands[0].execute(self.msg)
                 self.publish()
                 self.commands[0].published = True
 
         # switch to the next command
         else:
+            print(f'Switching to next command: {len(self.commands) - 1} remaining')
             # check if we need to 'revert' the command's values to 0
             if self.commands[0].stop_at_end:
                 self.msg = self.commands[0].execute(self.msg, stop=True)
@@ -101,7 +175,10 @@ class CommandController(Node):
             if (len(self.commands) > 1):
                 self.commands.pop(0)
                 self.commands[0].start_ns = self.get_clock().now().nanoseconds
-                self.commands[0].stop_ns = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
+                if self.commands[0].duration > 0:
+                    self.commands[0].stop_ns = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
+                else:
+                    self.commands[0].stop_ns = float("inf")
 
             else:
                 self.commands.pop(0)
@@ -109,18 +186,56 @@ class CommandController(Node):
 def main():
     rclpy.init()
 
-    commands: list[Command] = [
+    ############################################################################
+
+    # Commands \/\/\/
+
+    problem_3_commands: list[Command] = [
         Command(duration=5, speed=1.5),
         Command(duration=2, radians=-.15, stop_at_end=True),
         Command(duration=5, speed=1.5, stop_at_end=True),
     ]
 
-    pid = CommandController(commands)
+    problem_4_commands: list[Command] = [
+        Command(duration=2, speed=.15),
+        Command(duration=0, speed=.15, heading=90, stop_at_end=True),
+    ]
 
-    # check if pid is alive
-    while pid.commands:
-        rclpy.spin_once(pid)
+    controller = Controller(problem_4_commands)
 
+    # print("Starting command execution...")
+    # while rclpy.ok() and command_controller.commands:
+    #     rclpy.spin_once(command_controller)
+
+    # print("Command execution complete!")
+
+    # controller.heading_logger.close()
+    # controller.command_logger.close()
+
+    ############################################################################
+
+    # Waypoints \/\/\/
+
+    problem_5_waypoints: list[Waypoint] = [
+        Waypoint(x=0, y=0),
+        Waypoint(x=0, y=1),
+        Waypoint(x=2, y=2),
+        Waypoint(x=3, y=-3),
+    ]
+
+    print("Starting waypoint execution...")
+    start_ns: int = controller.get_clock().now().nanoseconds
+    while rclpy.ok() and controller.commands:
+        rclpy.spin_once(controller)
+    
+    end_ns: int = controller.get_clock().now().nanoseconds
+    print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
+
+    controller.pose_logger.close()
+
+    ############################################################################
+
+    controller.destroy_node()
     rclpy.shutdown()
 
 if __name__ == "__main__":
