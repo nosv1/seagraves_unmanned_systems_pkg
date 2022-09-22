@@ -26,10 +26,11 @@ find_package(rclpy REQUIRED)
 # )
 
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME})
+ament_python_install_package(scripts)
+ament_python_install_package(support_module)
 # Install Python executables
 install(PROGRAMS
-  scripts/python_node.py
+  scripts/controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()
