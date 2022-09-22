@@ -84,7 +84,7 @@ class Controller(Node):
         elif waypoints:
             self.waypoints = waypoints
 
-            self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
+        self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
         # initialize subscriber and publisher
         self.subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.callback, 10)
@@ -203,37 +203,37 @@ def main():
 
     controller = Controller(problem_4_commands)
 
-    # print("Starting command execution...")
-    # while rclpy.ok() and command_controller.commands:
-    #     rclpy.spin_once(command_controller)
+    print("Starting command execution...")
+    while rclpy.ok() and controller.commands:
+        rclpy.spin_once(controller)
 
-    # print("Command execution complete!")
+    print("Command execution complete!")
 
-    # controller.heading_logger.close()
-    # controller.command_logger.close()
+    controller.heading_logger.close()
+    controller.command_logger.close()
 
     ############################################################################
 
     # Waypoints \/\/\/
 
-    problem_5_waypoints: list[Waypoint] = [
-        Waypoint(x=0, y=0),
-        Waypoint(x=0, y=1),
-        Waypoint(x=2, y=2),
-        Waypoint(x=3, y=-3),
-    ]
+    # problem_5_waypoints: list[Waypoint] = [
+    #     Waypoint(x=0, y=0),
+    #     Waypoint(x=0, y=1),
+    #     Waypoint(x=2, y=2),
+    #     Waypoint(x=3, y=-3),
+    # ]
 
-    print("Starting waypoint execution...")
-    start_ns: int = controller.get_clock().now().nanoseconds
-    while rclpy.ok() and controller.commands:
-        rclpy.spin_once(controller)
+    # print("Starting waypoint execution...")
+    # start_ns: int = controller.get_clock().now().nanoseconds
+    # while rclpy.ok() and controller.commands:
+    #     rclpy.spin_once(controller)
     
-    end_ns: int = controller.get_clock().now().nanoseconds
-    print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
-
-    controller.pose_logger.close()
+    # end_ns: int = controller.get_clock().now().nanoseconds
+    # print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
 
     ############################################################################
+
+    controller.pose_logger.close()
 
     controller.destroy_node()
     rclpy.shutdown()
