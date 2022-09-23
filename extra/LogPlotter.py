@@ -33,10 +33,6 @@ def main() -> None:
     command_yaw: list[float] = []  # z in the angular vector
 
     start_time: int = None
-    max_yaw: float = float("-inf")
-    max_yaw_time: float = None
-    start_settle: float = None
-    end_settle: float = None
 
     # time,position_x,position_y,position_z,roll,pitch,yaw
     for line in pose_log[1:]:
@@ -52,14 +48,6 @@ def main() -> None:
         current_roll.append(float(line.split(",")[4]))
         current_pitch.append(float(line.split(",")[5]))
         current_yaw.append(float(line.split(",")[6]))
-        if max_yaw < current_yaw[-1]:
-            max_yaw = current_yaw[-1]
-            max_yaw_time = current_time[-1]
-        if not start_settle and 90 - current_yaw[-1] < 90 * .02:
-            start_settle = current_time[-1]
-        if current_time[-1] > max_yaw_time:
-            if not end_settle and abs(current_yaw[-1] - 90) < 90 * .02:
-                end_settle = current_time[-1]
         
     # time,linear_x,linear_y,linear_z,angular_x,angular_y,angular_z
     for line in command_log[1:]:
@@ -113,11 +101,6 @@ def main() -> None:
     twin_position.plot(current_time, current_y, color=Colors.blue, label="y")
 
     rotation_subplot.plot(current_time, current_yaw, color=Colors.red, label="yaw")
-    rotation_subplot.axhline(y=90, color=Colors.light_grey, linestyle="--", label="90 deg")
-    rotation_subplot.axhline(y=90 * .9, color=Colors.light_blue, linestyle="--", label="81 deg")
-    rotation_subplot.axhline(y=90 * .1, color=Colors.light_purple, linestyle="--", label="9 deg")
-    rotation_subplot.axvline(x=start_settle, color=Colors.light_green, linestyle="--", label="start settle")
-    rotation_subplot.axvline(x=end_settle, color=Colors.black, linestyle="--", label="end settle")
 
     command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o")
     twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o")
@@ -126,7 +109,7 @@ def main() -> None:
 
     min_axis = min(min(current_x), min(current_y))
     max_axis = max(max(current_x), max(current_y))
-    min_axis = (max_axis - min_axis) / 10 * -1
+    min_axis = min_axis - (max_axis - min_axis) / 10
     max_axis = (max_axis - min_axis) / 10 + max_axis
     xy_subplot.set_xlim(min_axis, max_axis)
     xy_subplot.set_ylim(min_axis, max_axis)

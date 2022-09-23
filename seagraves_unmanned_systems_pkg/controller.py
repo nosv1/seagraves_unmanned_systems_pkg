@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # python imports
-from math import pi
+from math import atan2, pi
 
 # ros imports
 from geometry_msgs.msg import Point, Quaternion, Twist
@@ -15,6 +15,7 @@ from rclpy.publisher import Publisher
 
 # personal imports
 from support_module.Logger import Logger
+from support_module.math_tools import clamp
 from support_module.PID import PID
 from support_module.quaternion_tools import euler_from_quaternion
 
@@ -58,35 +59,43 @@ class Command:
                 msg.angular.z = msg.angular.z if not stop else 0.0
         return msg
 
-class Waypoint:
-    def __init__(
-        self, 
-        x: float, 
-        y: float, 
-        arrived_at_waypoint_raduis: float=0.1
-    ):
+class Point:
+    def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-        self.arrived_at_waypoint_radius = arrived_at_waypoint_raduis
+
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
+
+    def distance_to(self, other: Point) -> float:
+        """
+        Euclidean distance between two points
+        """
+        return ((self.x - other.x) ** 2 + (self.y - other.y) ** 2) ** 0.5
+
+    def heading_to(self, other: Point) -> float:
+        """
+        Heading from self to other in radians
+        """
+        return atan2(other.y - self.y, other.x - self.x)
+
+class Waypoint(Point):
+    def __init__(self, arrived_at_waypoint_radius: float=0.1, **kwargs):
+        super().__init__(**kwargs)
+        self.arrived_at_waypoint_radius = arrived_at_waypoint_radius
+
+    def __str__(self) -> str:
+        return super().__str__()
+
+    def arrived_at_waypoint(self, other: Point) -> bool:
+        return self.distance_to(other) <= self.arrived_at_waypoint_radius
 
 class Controller(Node):
     def __init__(self, commands: list[Command] = None, waypoints: list[Waypoint]=None) -> None:
         super().__init__("CommandController")
 
-        if commands:
-            # knowing the start and stop_ns allows us to know when to switch to the next command
-            # this assumes our commands are time based and not position based
-            self.commands = commands
-            self.commands[0].start_ns: int = self.get_clock().now().nanoseconds
-            self.commands[0].stop_ns: int = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
-
-            self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
-            self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
-            
-        elif waypoints:
-            self.waypoints = waypoints
-
-        self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
+        self.commands = commands
+        self.waypoints = waypoints
 
         # initialize subscriber and publisher
         self.subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.callback, 10)
@@ -99,6 +108,20 @@ class Controller(Node):
         self.previous_time: int = self.get_clock().now().nanoseconds
         self.current_time: int = self.get_clock().now().nanoseconds
         self.dt: float = 0.0
+
+        if commands:
+            # knowing the start and stop_ns allows us to know when to switch to the next command
+            # this assumes our commands are time based and not position based
+            self.commands[0].start_ns: int = self.get_clock().now().nanoseconds
+            self.commands[0].stop_ns: int = self.commands[0].start_ns + (self.commands[0].duration * 1e9)
+
+            self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
+            
+        elif waypoints:
+            self.msg.linear.x = .95
+
+        self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
+        self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
 
     def publish(self) -> None:
@@ -119,15 +142,17 @@ class Controller(Node):
         self.current_time = self.get_clock().now().nanoseconds
         self.dt = (self.current_time - self.previous_time) / 1e9
         
-        position: Point = msg.pose.pose.position
-        orientation: Quaternion = msg.pose.pose.orientation
-        self.roll, self.pitch, self.yaw = euler_from_quaternion(orientation.x, orientation.y, orientation.z, orientation.w)
+        self.position: Point = msg.pose.pose.position
+        self.orientation: Quaternion = msg.pose.pose.orientation
+        self.roll, self.pitch, self.yaw = euler_from_quaternion(
+            self.orientation.x, self.orientation.y, self.orientation.z, self.orientation.w
+        )
 
         self.pose_logger.log([
             self.get_clock().now().nanoseconds / 1e9, 
-            position.x, 
-            position.y, 
-            position.z, 
+            self.position.x, 
+            self.position.y, 
+            self.position.z, 
             self.roll * 180 / pi, 
             self.pitch * 180 / pi, 
             self.yaw * 180 / pi
@@ -149,9 +174,8 @@ class Controller(Node):
                 if self.commands[0].heading is not None:
                     self.msg = self.commands[0].execute(self.msg, stop=False)
                     # clamp pid output to max/min turnrate of the robot
-                    self.msg.angular.z = max(
-                        min(self.pid.update(self.commands[0].heading, self.yaw, self.dt), 2.84),
-                        -2.84
+                    self.msg.angular.z = clamp(
+                        self.pid.update(self.commands[0].heading, self.yaw, self.dt), -2.84, 2.84
                     )
                     if not self.commands[0].start_error:
                         self.commands[0].start_error = self.pid.prev_error
@@ -185,6 +209,36 @@ class Controller(Node):
             else:
                 self.commands.pop(0)
 
+    def waypoint_update(self) -> None:
+        current_position: Point = Point(
+            x=self.position.x,
+            y=self.position.y
+        )            
+
+        acutal_heading: float = self.yaw
+        desired_heading: float = current_position.heading_to(self.waypoints[0])
+        pid_desired_heading: float = (
+            desired_heading - 2 * pi
+            if desired_heading - acutal_heading > pi
+            else desired_heading
+        )
+        self.msg.angular.z = clamp(
+            self.pid.update(
+                pid_desired_heading, self.yaw, self.dt
+            ), -2.84, 2.84
+        )
+        
+        if self.waypoints[0].arrived_at_waypoint(current_position):
+            print(f"Arrived at waypoint: {self.waypoints[0]}")
+            self.waypoints.pop(0)
+            if not self.waypoints:
+                self.msg.linear.x = 0.0
+                self.msg.angular.z = 0.0
+            else:
+                print(f"Next waypoint: {self.waypoints[0]}")
+            
+        self.publish()
+
 def main():
     rclpy.init()
 
@@ -192,46 +246,48 @@ def main():
 
     # Commands \/\/\/
 
-    problem_3_commands: list[Command] = [
-        Command(duration=5, speed=1.5),
-        Command(duration=2, radians=-.15, stop_at_end=True),
-        Command(duration=5, speed=1.5, stop_at_end=True),
-    ]
+    # problem_3_commands: list[Command] = [
+    #     Command(duration=5, speed=1.5),
+    #     Command(duration=2, radians=-.15, stop_at_end=True),
+    #     Command(duration=5, speed=1.5, stop_at_end=True),
+    # ]
 
-    problem_4_commands: list[Command] = [
-        Command(duration=2, speed=.15),
-        Command(duration=0, speed=.15, heading=90, stop_at_end=True),
-    ]
+    # problem_4_commands: list[Command] = [
+    #     Command(duration=2, speed=.15),
+    #     Command(duration=0, speed=.15, heading=90, stop_at_end=True),
+    # ]
 
-    controller = Controller(problem_4_commands)
+    # controller = Controller(commands=problem_4_commands)
 
-    print("Starting command execution...")
-    while rclpy.ok() and controller.commands:
-        rclpy.spin_once(controller)
+    # print("Starting command execution...")
+    # while rclpy.ok() and controller.commands:
+    #     rclpy.spin_once(controller)
 
-    print("Command execution complete!")
+    # print("Command execution complete!")
 
-    controller.heading_logger.close()
-    controller.command_logger.close()
+    # controller.heading_logger.close()
+    # controller.command_logger.close()
 
     ############################################################################
 
     # Waypoints \/\/\/
 
-    # problem_5_waypoints: list[Waypoint] = [
-    #     Waypoint(x=0, y=0),
-    #     Waypoint(x=0, y=1),
-    #     Waypoint(x=2, y=2),
-    #     Waypoint(x=3, y=-3),
-    # ]
+    problem_5_waypoints: list[Waypoint] = [
+        Waypoint(x=0, y=0),
+        Waypoint(x=0, y=1),
+        Waypoint(x=2, y=2),
+        Waypoint(x=3, y=-3),
+    ]
 
-    # print("Starting waypoint execution...")
-    # start_ns: int = controller.get_clock().now().nanoseconds
-    # while rclpy.ok() and controller.commands:
-    #     rclpy.spin_once(controller)
+    controller = Controller(waypoints=problem_5_waypoints)
+
+    print("Starting waypoint execution...")
+    start_ns: int = controller.get_clock().now().nanoseconds
+    while rclpy.ok() and controller.waypoints:
+        rclpy.spin_once(controller)
     
-    # end_ns: int = controller.get_clock().now().nanoseconds
-    # print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
+    end_ns: int = controller.get_clock().now().nanoseconds
+    print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
 
     ############################################################################
 
