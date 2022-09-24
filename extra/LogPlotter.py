@@ -102,10 +102,10 @@ def main() -> None:
 
     rotation_subplot.plot(current_time, current_yaw, color=Colors.red, label="yaw")
 
-    command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o")
-    twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o")
+    command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=4)
+    twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o", markersize=4)
 
-    xy_subplot.scatter(current_x, current_y, c=current_time, label="xy")
+    xy_subplot.scatter(current_x, current_y, c=current_time, label="xy", marker="o", s=4)
 
     min_axis = min(min(current_x), min(current_y))
     max_axis = max(max(current_x), max(current_y))
@@ -114,6 +114,12 @@ def main() -> None:
     xy_subplot.set_xlim(min_axis, max_axis)
     xy_subplot.set_ylim(min_axis, max_axis)
     xy_subplot.set_aspect('equal')
+
+    waypoints: list[list[float], list[float]] = [
+        [0, 0, 2, 3],
+        [0, 1, 2, -3],
+    ]
+    xy_subplot.plot(waypoints[0], waypoints[1], color=Colors.red, label="waypoints", marker="o", markersize=4)
     
     # labels
     position_subplot.set_ylabel('x (m)')

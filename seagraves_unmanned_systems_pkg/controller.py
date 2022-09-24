@@ -12,6 +12,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.subscription import Subscription
 from rclpy.publisher import Publisher
+from rosgraph_msgs.msg import Clock
 
 # personal imports
 from support_module.Logger import Logger
@@ -98,13 +99,14 @@ class Controller(Node):
         self.waypoints = waypoints
 
         # initialize subscriber and publisher
-        self.subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.callback, 10)
+        self.odom_subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.odom_callback, 10)
+        self.clock_subscriber: Subscription = self.create_subscription(Clock, "/clock", self.clock_callback, 10)
         self.publisher: Publisher = self.create_publisher(Twist, "/cmd_vel", 10)
 
         # intialize the Twist() message
         self.msg: Twist = Twist()
 
-        self.pid: PID = PID(kp=6.5, ki=0, kd=0)
+        self.pid: PID = PID(kp=4.5, ki=0, kd=0.25)
         self.previous_time: int = self.get_clock().now().nanoseconds
         self.current_time: int = self.get_clock().now().nanoseconds
         self.dt: float = 0.0
@@ -123,6 +125,9 @@ class Controller(Node):
         self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
         self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
+        self.sim_start: float = 0
+        self.sim_current: float = 0
+
 
     def publish(self) -> None:
         self.command_logger.log([
@@ -137,7 +142,7 @@ class Controller(Node):
         
         self.publisher.publish(self.msg)
 
-    def callback(self, msg: Odometry) -> None:
+    def odom_callback(self, msg: Odometry) -> None:
         self.previous_time = self.current_time
         self.current_time = self.get_clock().now().nanoseconds
         self.dt = (self.current_time - self.previous_time) / 1e9
@@ -162,6 +167,10 @@ class Controller(Node):
             self.command_update()
         elif self.waypoints:
             self.waypoint_update()
+
+    def clock_callback(self, msg: Clock) -> None:
+        self.sim_start = msg.clock.sec + msg.clock.nanosec / 1e9 if not self.sim_start else self.sim_start
+        self.sim_current = msg.clock.sec + msg.clock.nanosec / 1e9
 
     def command_update(self) -> None:
 
@@ -227,6 +236,11 @@ class Controller(Node):
                 pid_desired_heading, self.yaw, self.dt
             ), -2.84, 2.84
         )
+        # self.msg.linear.x = clamp(
+        #     self.pid.update(
+        #         pid_desired_heading, self.yaw, self.dt
+        #     )
+        # )
         
         if self.waypoints[0].arrived_at_waypoint(current_position):
             print(f"Arrived at waypoint: {self.waypoints[0]}")
@@ -266,7 +280,6 @@ def main():
     # print("Command execution complete!")
 
     # controller.heading_logger.close()
-    # controller.command_logger.close()
 
     ############################################################################
 
@@ -287,10 +300,13 @@ def main():
         rclpy.spin_once(controller)
     
     end_ns: int = controller.get_clock().now().nanoseconds
-    print(f"Waypoint execution complete! Total time: {(end_ns - start_ns) / 1e9} seconds")
+    print("Waypoint execution complete!")
+    print(f"Total time: {(end_ns - start_ns) / 1e9} seconds")
+    print(f"Simulation time: {controller.sim_current - controller.sim_start:.3f} seconds")
 
     ############################################################################
 
+    controller.command_logger.close()
     controller.pose_logger.close()
 
     controller.destroy_node()

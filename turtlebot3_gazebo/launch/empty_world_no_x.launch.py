@@ -31,12 +31,14 @@ TURTLEBOT3_MODEL = os.environ['TURTLEBOT3_MODEL']
 
 def generate_launch_description():
     world_file_name = 'empty_worlds/' + TURTLEBOT3_MODEL + '.model'
-    world_path = os.path.join(get_package_share_directory('turtlebot3_gazebo'),
-                         'worlds', world_file_name)
+    world_path = os.path.join(
+        '/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/turtlebot3_gazebo', 'worlds', world_file_name
+    )
     launch_file_dir = os.path.join(get_package_share_directory('turtlebot3_gazebo'), 'launch')
     pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
 
-    print('LOOK HERE', world_path)
+    print(f"World Path: {world_path}")
+    print(f"Launch File Dir: {launch_file_dir}")
 
     headless = LaunchConfiguration('headless')
     use_sim_time = LaunchConfiguration('use_sim_time')
