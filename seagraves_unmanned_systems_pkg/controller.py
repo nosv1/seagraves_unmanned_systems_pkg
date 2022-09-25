@@ -17,11 +17,11 @@ from rclpy.publisher import Publisher
 from rosgraph_msgs.msg import Clock
 
 # personal imports
+from support_module.GeneticAlgorithm import GeneticAlgorithm
 from support_module.Logger import Logger
 from support_module.math_tools import clamp
 from support_module.PID import PID
 from support_module.quaternion_tools import euler_from_quaternion
-
 
 class Command:
     def __init__(self, duration: float, speed: float=None, radians: float=None, heading: float=None, stop_at_end: bool=False):
@@ -310,6 +310,16 @@ def main():
     heading_pid: PID = PID(kp=4.5, ki=0, kd=0.25)
     throttle_pid: PID = PID(kp=0.5, ki=0, kd=0.25)
     best_time = float('inf')
+
+    genetic_algorithm: GeneticAlgorithm = GeneticAlgorithm(population_size=10)
+    genetic_algorithm.initalize_population([
+        (random.random, (3, 6)),   # heading_Kp
+        (random.random, (-1, 1)),  # heading_Ki 
+        (random.random, (-1, 1)),  # heading_Kd 
+        (random.random, (3, 6)),   # throttle_Kp
+        (random.random, (-1, 1)),  # throttle_Ki
+        (random.random, (-1, 1))   # throttle_Kd
+    ])
 
     iterations = 100
     i = 1
