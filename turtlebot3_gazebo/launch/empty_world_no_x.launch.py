@@ -28,7 +28,6 @@ from launch.substitutions import LaunchConfiguration, PythonExpression
 
 TURTLEBOT3_MODEL = os.environ['TURTLEBOT3_MODEL']
 
-
 def generate_launch_description():
     world_file_name = 'empty_worlds/' + TURTLEBOT3_MODEL + '.model'
     world_path = os.path.join(

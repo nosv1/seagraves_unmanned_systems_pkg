@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 class PID:
     def __init__(self, kp: float, ki: float, kd: float) -> None:
         self.kp = kp
@@ -6,6 +8,9 @@ class PID:
         self.prev_error = 0.0
         self.integral = 0.0
         self.derivative = 0.0
+
+    def copy(self) -> PID:
+        return PID(self.kp, self.ki, self.kd)
 
     def update(self, desired: float, actual: float, dt: float) -> float:
         error = desired - actual

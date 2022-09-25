@@ -4,6 +4,8 @@ from __future__ import annotations
 
 # python imports
 from math import atan2, pi
+from os import system
+import random
 
 # ros imports
 from geometry_msgs.msg import Point, Quaternion, Twist
@@ -92,21 +94,30 @@ class Waypoint(Point):
         return self.distance_to(other) <= self.arrived_at_waypoint_radius
 
 class Controller(Node):
-    def __init__(self, commands: list[Command] = None, waypoints: list[Waypoint]=None) -> None:
+    def __init__(
+        self, 
+        commands: list[Command] = None, 
+        waypoints: list[Waypoint]=None,
+        heading_pid: PID=None,
+        throttle_pid: PID=None,
+    ) -> None:
         super().__init__("CommandController")
 
         self.commands = commands
         self.waypoints = waypoints
+        self.heading_pid = heading_pid
+        self.throttle_pid = throttle_pid
 
         # initialize subscriber and publisher
         self.odom_subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.odom_callback, 10)
         self.clock_subscriber: Subscription = self.create_subscription(Clock, "/clock", self.clock_callback, 10)
-        self.publisher: Publisher = self.create_publisher(Twist, "/cmd_vel", 10)
+        self.cmd_vel_publisher: Publisher = self.create_publisher(Twist, "/cmd_vel", 10)
+        self.odom_publisher: Publisher = self.create_publisher(Odometry, "/odom", 10)
 
         # intialize the Twist() message
-        self.msg: Twist = Twist()
+        self.twist_msg: Twist = Twist()
+        self.odom_msg: Odometry = Odometry()
 
-        self.pid: PID = PID(kp=4.5, ki=0, kd=0.25)
         self.previous_time: int = self.get_clock().now().nanoseconds
         self.current_time: int = self.get_clock().now().nanoseconds
         self.dt: float = 0.0
@@ -120,27 +131,30 @@ class Controller(Node):
             self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
             
         elif waypoints:
-            self.msg.linear.x = .95
+            self.twist_msg.linear.x = .95
 
         self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
         self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
         self.sim_start: float = 0
         self.sim_current: float = 0
+        self.sim_ellapsed: float = 0
 
-
-    def publish(self) -> None:
+    def publish_cmd_vel(self) -> None:
         self.command_logger.log([
             self.get_clock().now().nanoseconds / 1e9, 
-            self.msg.linear.x, 
-            self.msg.linear.y, 
-            self.msg.linear.z, 
-            self.msg.angular.x, 
-            self.msg.angular.y, 
-            self.msg.angular.z
+            self.twist_msg.linear.x, 
+            self.twist_msg.linear.y, 
+            self.twist_msg.linear.z, 
+            self.twist_msg.angular.x, 
+            self.twist_msg.angular.y, 
+            self.twist_msg.angular.z
         ])
         
-        self.publisher.publish(self.msg)
+        self.cmd_vel_publisher.publish(self.twist_msg)
+
+    def publish_odom(self) -> None:
+        self.odom_publisher.publish(self.odom_msg)
 
     def odom_callback(self, msg: Odometry) -> None:
         self.previous_time = self.current_time
@@ -171,31 +185,32 @@ class Controller(Node):
     def clock_callback(self, msg: Clock) -> None:
         self.sim_start = msg.clock.sec + msg.clock.nanosec / 1e9 if not self.sim_start else self.sim_start
         self.sim_current = msg.clock.sec + msg.clock.nanosec / 1e9
+        self.sim_ellapsed = self.sim_current - self.sim_start
 
     def command_update(self) -> None:
 
         # check if we need to switch to the next command
         self.commands[0].completed = self.commands[0].completed or self.commands[0].stop_ns < self.get_clock().now().nanoseconds
-        self.commands[0].completed = self.commands[0].completed or (self.commands[0].use_pid and abs(self.pid.prev_error) < abs(self.commands[0].stop_error))
+        self.commands[0].completed = self.commands[0].completed or (self.commands[0].use_pid and abs(self.heading_pid.prev_error) < abs(self.commands[0].stop_error))
         if not self.commands[0].completed:
 
             if self.commands[0].use_pid:
                 if self.commands[0].heading is not None:
-                    self.msg = self.commands[0].execute(self.msg, stop=False)
+                    self.twist_msg = self.commands[0].execute(self.twist_msg, stop=False)
                     # clamp pid output to max/min turnrate of the robot
-                    self.msg.angular.z = clamp(
-                        self.pid.update(self.commands[0].heading, self.yaw, self.dt), -2.84, 2.84
+                    self.twist_msg.angular.z = clamp(
+                        self.heading_pid.update(self.commands[0].heading, self.yaw, self.dt), -2.84, 2.84
                     )
                     if not self.commands[0].start_error:
-                        self.commands[0].start_error = self.pid.prev_error
+                        self.commands[0].start_error = self.heading_pid.prev_error
                         self.commands[0].stop_error = self.commands[0].start_error * 0.0001
                     self.heading_logger.log([self.get_clock().now().nanoseconds, self.commands[0].heading, self.yaw])
-                    self.publish()
+                    self.publish_cmd_vel()
 
             # check if we've not published the command yet
             elif not self.commands[0].published:
-                self.msg = self.commands[0].execute(self.msg)
-                self.publish()
+                self.twist_msg = self.commands[0].execute(self.twist_msg)
+                self.publish_cmd_vel()
                 self.commands[0].published = True
 
         # switch to the next command
@@ -203,8 +218,8 @@ class Controller(Node):
             print(f'Switching to next command: {len(self.commands) - 1} remaining')
             # check if we need to 'revert' the command's values to 0
             if self.commands[0].stop_at_end:
-                self.msg = self.commands[0].execute(self.msg, stop=True)
-                self.publish()
+                self.twist_msg = self.commands[0].execute(self.twist_msg, stop=True)
+                self.publish_cmd_vel()
 
             # pop the current command and set the next command's start_ns and stop_ns
             if (len(self.commands) > 1):
@@ -231,27 +246,28 @@ class Controller(Node):
             if desired_heading - acutal_heading > pi
             else desired_heading
         )
-        self.msg.angular.z = clamp(
-            self.pid.update(
+        self.twist_msg.angular.z = clamp(
+            self.heading_pid.update(
                 pid_desired_heading, self.yaw, self.dt
             ), -2.84, 2.84
         )
-        # self.msg.linear.x = clamp(
-        #     self.pid.update(
+        # self.twist_msg.linear.x = clamp(
+        #     -self.throttle_pid.update(
         #         pid_desired_heading, self.yaw, self.dt
-        #     )
-        # )
+        #     ),
+        #     -2.0, 0.0
+        # ) + 2
         
         if self.waypoints[0].arrived_at_waypoint(current_position):
             print(f"Arrived at waypoint: {self.waypoints[0]}")
             self.waypoints.pop(0)
             if not self.waypoints:
-                self.msg.linear.x = 0.0
-                self.msg.angular.z = 0.0
+                self.twist_msg.linear.x = 0.0
+                self.twist_msg.angular.z = 0.0
             else:
                 print(f"Next waypoint: {self.waypoints[0]}")
             
-        self.publish()
+        self.publish_cmd_vel()
 
 def main():
     rclpy.init()
@@ -291,18 +307,58 @@ def main():
         Waypoint(x=2, y=2),
         Waypoint(x=3, y=-3),
     ]
+    heading_pid: PID = PID(kp=4.5, ki=0, kd=0.25)
+    throttle_pid: PID = PID(kp=0.5, ki=0, kd=0.25)
+    best_time = float('inf')
 
-    controller = Controller(waypoints=problem_5_waypoints)
+    iterations = 100
+    i = 1
+    while i <= iterations:
+        print(f"Iteration {i+1}/{iterations}")
 
-    print("Starting waypoint execution...")
-    start_ns: int = controller.get_clock().now().nanoseconds
-    while rclpy.ok() and controller.waypoints:
-        rclpy.spin_once(controller)
-    
-    end_ns: int = controller.get_clock().now().nanoseconds
-    print("Waypoint execution complete!")
-    print(f"Total time: {(end_ns - start_ns) / 1e9} seconds")
-    print(f"Simulation time: {controller.sim_current - controller.sim_start:.3f} seconds")
+        print("Resetting world...")
+        system("ros2 service call /reset_world std_srvs/srv/Empty")
+        controller = Controller(
+            waypoints=problem_5_waypoints.copy(),
+            heading_pid=heading_pid.copy(),
+            throttle_pid=throttle_pid.copy()
+        )
+
+        print("Starting waypoint execution...")
+        start_ns: int = controller.get_clock().now().nanoseconds
+        while rclpy.ok() and controller.waypoints and controller.sim_ellapsed < best_time:
+            rclpy.spin_once(controller)
+        
+        end_ns: int = controller.get_clock().now().nanoseconds
+        print("Waypoint execution complete!")
+        print(f"Total IRL Time: {(end_ns - start_ns) / 1e9} seconds")
+        print(f"Total Sim Time: {controller.sim_ellapsed:.3f} seconds")
+
+        controller.twist_msg.linear.x = 0.0
+        controller.twist_msg.angular.z = 0.0
+        controller.publish_cmd_vel()
+
+        if best_time > controller.sim_ellapsed:
+            best_time = controller.sim_ellapsed
+            print(f"New best time: {best_time:.3f} seconds")
+            heading_pid = controller.heading_pid.copy()
+            throttle_pid = controller.throttle_pid.copy()
+
+        else:
+            heading_pid = PID(
+                kp=random.uniform(0.1, 10),
+                ki=random.uniform(0.1, 10),
+                kd=random.uniform(0.1, 10)
+            )
+            # throttle_pid = PID(
+            #     kp=random.uniform(0.1, 10),
+            #     ki=random.uniform(0.1, 10),
+            #     kd=random.uniform(0.1, 10)
+            # )
+
+        controller.destroy_node()
+
+        i += 1
 
     ############################################################################
 
