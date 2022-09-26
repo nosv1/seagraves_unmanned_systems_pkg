@@ -92,11 +92,17 @@ class Waypoint(Point):
         return self.distance_to(other) <= self.arrived_at_waypoint_radius
 
 class Controller(Node):
-    def __init__(self, commands: list[Command] = None, waypoints: list[Waypoint]=None) -> None:
+    def __init__(
+        self, 
+        commands: list[Command] = None, 
+        waypoints: list[Waypoint]=None,
+        max_speed: float=0.2,
+    ) -> None:
         super().__init__("CommandController")
 
         self.commands = commands
         self.waypoints = waypoints
+        self.max_speed = max_speed
 
         # initialize subscriber and publisher
         self.odom_subscriber: Subscription = self.create_subscription(Odometry, "/odom", self.odom_callback, 10)
@@ -120,13 +126,14 @@ class Controller(Node):
             self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
             
         elif waypoints:
-            self.msg.linear.x = .95
+            self.msg.linear.x = self.max_speed
 
         self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
         self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
 
         self.sim_start: float = 0
         self.sim_current: float = 0
+        self.sim_ellapsed: float = 0
 
 
     def publish(self) -> None:
@@ -171,6 +178,7 @@ class Controller(Node):
     def clock_callback(self, msg: Clock) -> None:
         self.sim_start = msg.clock.sec + msg.clock.nanosec / 1e9 if not self.sim_start else self.sim_start
         self.sim_current = msg.clock.sec + msg.clock.nanosec / 1e9
+        self.sim_ellapsed = self.sim_current - self.sim_start
 
     def command_update(self) -> None:
 
@@ -292,7 +300,10 @@ def main():
         Waypoint(x=3, y=-3),
     ]
 
-    controller = Controller(waypoints=problem_5_waypoints)
+    controller = Controller(
+        waypoints=problem_5_waypoints,
+        max_speed=.95
+    )
 
     print("Starting waypoint execution...")
     start_ns: int = controller.get_clock().now().nanoseconds
@@ -301,8 +312,8 @@ def main():
     
     end_ns: int = controller.get_clock().now().nanoseconds
     print("Waypoint execution complete!")
-    print(f"Total time: {(end_ns - start_ns) / 1e9} seconds")
-    print(f"Simulation time: {controller.sim_current - controller.sim_start:.3f} seconds")
+    print(f"Total IRL Time: {(end_ns - start_ns) / 1e9} seconds")
+    print(f"Total Sim Time: {controller.sim_ellapsed:.3f} seconds")
 
     ############################################################################
 
