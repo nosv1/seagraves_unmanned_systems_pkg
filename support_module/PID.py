@@ -9,6 +9,9 @@ class PID:
         self.integral = 0.0
         self.derivative = 0.0
 
+    def __str__(self) -> str:
+        return f"PID: Kp={self.kp:.2f}, Ki={self.ki:.2f}, Kd={self.kd:.2f}"
+
     def copy(self) -> PID:
         return PID(self.kp, self.ki, self.kd)
 

@@ -132,6 +132,9 @@ class Controller(Node):
             
         elif waypoints:
             self.twist_msg.linear.x = .95
+            self.current_waypoint_number: int = 1
+            self.average_speed_per_waypoint: float = 0  # avg (waypoint-to-waypoint-distance / time)
+            self.last_waypoint_reached_at: int = self.current_time  # ns
 
         self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
         self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
@@ -240,7 +243,7 @@ class Controller(Node):
         )            
 
         acutal_heading: float = self.yaw
-        desired_heading: float = current_position.heading_to(self.waypoints[0])
+        desired_heading: float = current_position.heading_to(self.waypoints[self.current_waypoint_number])
         pid_desired_heading: float = (
             desired_heading - 2 * pi
             if desired_heading - acutal_heading > pi
@@ -258,14 +261,27 @@ class Controller(Node):
         #     -2.0, 0.0
         # ) + 2
         
-        if self.waypoints[0].arrived_at_waypoint(current_position):
-            print(f"Arrived at waypoint: {self.waypoints[0]}")
-            self.waypoints.pop(0)
-            if not self.waypoints:
+        # try to switch to the next waypoint
+        if self.waypoints[self.current_waypoint_number].arrived_at_waypoint(current_position):
+            print(f"Arrived at waypoint: {self.waypoints[self.current_waypoint_number]}")
+            self.current_time: int = self.get_clock().now().nanoseconds
+
+            waypoint_speed = self.waypoints[self.current_waypoint_number].distance_to(
+                self.waypoints[self.current_waypoint_number - 1]
+            ) / ((self.current_time - self.last_waypoint_reached_at) / 1e9)
+            # (average-speed * waypoints-reached + waypoint_speed) / (new-waypoints-reached + 1)
+            self.average_speed_per_waypoint = (
+                (self.average_speed_per_waypoint * (self.current_waypoint_number - 1) + waypoint_speed) / 
+                (self.current_waypoint_number)
+            )
+            self.last_waypoint_reached_at = self.current_time
+            self.current_waypoint_number += 1
+            
+            if self.current_waypoint_number == len(self.waypoints):
                 self.twist_msg.linear.x = 0.0
                 self.twist_msg.angular.z = 0.0
             else:
-                print(f"Next waypoint: {self.waypoints[0]}")
+                print(f"Next waypoint: {self.waypoints[self.current_waypoint_number]}")
             
         self.publish_cmd_vel()
 
@@ -307,66 +323,68 @@ def main():
         Waypoint(x=2, y=2),
         Waypoint(x=3, y=-3),
     ]
-    heading_pid: PID = PID(kp=4.5, ki=0, kd=0.25)
-    throttle_pid: PID = PID(kp=0.5, ki=0, kd=0.25)
-    best_time = float('inf')
+    # heading_pid: PID = PID(kp=4.5, ki=0, kd=0.25)
+    # throttle_pid: PID = PID(kp=0.5, ki=0, kd=0.25)
+    max_iteration_time = 15.0
 
-    genetic_algorithm: GeneticAlgorithm = GeneticAlgorithm(population_size=10)
-    genetic_algorithm.initalize_population([
-        (random.random, (3, 6)),   # heading_Kp
-        (random.random, (-1, 1)),  # heading_Ki 
-        (random.random, (-1, 1)),  # heading_Kd 
-        (random.random, (3, 6)),   # throttle_Kp
-        (random.random, (-1, 1)),  # throttle_Ki
-        (random.random, (-1, 1))   # throttle_Kd
-    ])
+    genetic_algorithm: GeneticAlgorithm = GeneticAlgorithm(
+        population_size=8,
+        gene_randomizers=[
+            (random.random, (3, 6)),   # heading_Kp
+            (random.random, (-1, 1)),  # heading_Ki 
+            (random.random, (-1, 1)),  # heading_Kd 
+            (random.random, (3, 6)),   # throttle_Kp
+            (random.random, (-1, 1)),  # throttle_Ki
+            (random.random, (-1, 1))   # throttle_Kd
+        ],
+        mutation_std=0.1,
+        reverse_population_sort=True
+    )
 
-    iterations = 100
-    i = 1
-    while i <= iterations:
-        print(f"Iteration {i+1}/{iterations}")
+    generations = 100
+    i = 0
+    while i <= generations:
+        print(f"Generation {i+1}/{generations}")
 
-        print("Resetting world...")
-        system("ros2 service call /reset_world std_srvs/srv/Empty")
-        controller = Controller(
-            waypoints=problem_5_waypoints.copy(),
-            heading_pid=heading_pid.copy(),
-            throttle_pid=throttle_pid.copy()
-        )
+        for i, choromosome in enumerate(genetic_algorithm.population):
+            print(f"Chromosome {i+1}/{genetic_algorithm.population_size}")
+            print("Resetting world...")
+            system("ros2 service call /reset_world std_srvs/srv/Empty")
 
-        print("Starting waypoint execution...")
-        start_ns: int = controller.get_clock().now().nanoseconds
-        while rclpy.ok() and controller.waypoints and controller.sim_ellapsed < best_time:
-            rclpy.spin_once(controller)
-        
-        end_ns: int = controller.get_clock().now().nanoseconds
-        print("Waypoint execution complete!")
-        print(f"Total IRL Time: {(end_ns - start_ns) / 1e9} seconds")
-        print(f"Total Sim Time: {controller.sim_ellapsed:.3f} seconds")
-
-        controller.twist_msg.linear.x = 0.0
-        controller.twist_msg.angular.z = 0.0
-        controller.publish_cmd_vel()
-
-        if best_time > controller.sim_ellapsed:
-            best_time = controller.sim_ellapsed
-            print(f"New best time: {best_time:.3f} seconds")
-            heading_pid = controller.heading_pid.copy()
-            throttle_pid = controller.throttle_pid.copy()
-
-        else:
-            heading_pid = PID(
-                kp=random.uniform(0.1, 10),
-                ki=random.uniform(0.1, 10),
-                kd=random.uniform(0.1, 10)
+            controller = Controller(
+                waypoints=problem_5_waypoints.copy(),
+                heading_pid=PID(kp=choromosome.genes[0].gene, ki=choromosome.genes[1].gene, kd=choromosome.genes[2].gene),
+                # throttle_pid=PID(kp=choromosome.genes[3].gene, ki=choromosome.genes[4].gene, kd=choromosome.genes[5].gene),
             )
-            # throttle_pid = PID(
-            #     kp=random.uniform(0.1, 10),
-            #     ki=random.uniform(0.1, 10),
-            #     kd=random.uniform(0.1, 10)
-            # )
 
-        controller.destroy_node()
+            print("Starting waypoint execution...")
+            print(f"Heading: {controller.heading_pid}")
+            # print(f"Throttle: {controller.throttle_pid}")
+            # start_ns: int = controller.get_clock().now().nanoseconds
+            while (
+                rclpy.ok() and 
+                controller.current_waypoint_number < len(controller.waypoints) and
+                controller.sim_ellapsed < max_iteration_time
+            ):
+                rclpy.spin_once(controller)
+            # end_ns: int = controller.get_clock().now().nanoseconds
+
+            print("Waypoint execution complete!")
+            # print(f"Total IRL Time: {(end_ns - start_ns) / 1e9} seconds")
+            print(f"Total Sim Time: {controller.sim_ellapsed:.3f} seconds")
+            print(f"Average Speed: {controller.average_speed_per_waypoint:.3f} m/s")
+
+            controller.twist_msg.linear.x = 0.0
+            controller.twist_msg.angular.z = 0.0
+            controller.publish_cmd_vel()
+            controller.destroy_node()
+
+            if controller.current_waypoint_number > 1:
+                choromosome.fitness = controller.average_speed_per_waypoint
+            else:
+                choromosome.fitness = float('-inf')
+
+        genetic_algorithm.mutate_population(percent=.20)
 
         i += 1
 
