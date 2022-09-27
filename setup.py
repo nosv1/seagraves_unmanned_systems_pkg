@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'seagraves_unmanned_systems_pkg'
+package_name = 'scripts'
 support_moudle = 'support_module'
 
 setup(
@@ -21,7 +21,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'controller = seagraves_unmanned_systems_pkg.controller:main',
+            'controller = scripts.controller:main',
         ],
     },
 )
