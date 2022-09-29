@@ -162,8 +162,8 @@ def main() -> None:
 
     print("Loading scenario...")
     scenario: Scenario = Scenario().loader(
-        "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/seagraves_unmanned_systems/SearchAlgorithms/scenarios/AStar_15x15_bot-0o5_grid-1o0.json"
-        # "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/seagraves_unmanned_systems/SearchAlgorithms/scenarios/RRT_15x15_bot-0o5_grid-1o0.json"
+        "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/AStar_15x15_bot-0o5_grid-1o0.json"
+        # "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/RRT_15x15_bot-0o5_grid-1o0.json"
     )
 
     print("Finding path...")
