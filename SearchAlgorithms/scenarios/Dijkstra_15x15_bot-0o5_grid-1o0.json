@@ -1,0 +1,27 @@
+{
+    "bot_radius": 0.5,
+    "grid": {
+        "min_x": 0,
+        "max_x": 15,
+        "min_y": 0,
+        "max_y": 15,
+        "grid_spacing": 1.0
+    },
+    "start": {
+        "x": 1,
+        "y": 1
+    },
+    "goal": {
+        "x": 7,
+        "y": 13
+    },
+    "obstacles": {
+        "file": "obstacle_lists/64x.csv",
+        "radius": 0.49
+    },
+    "algorithm": {
+        "type": "Dijkstra",
+        "params": {
+        }
+    }
+}

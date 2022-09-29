@@ -1,0 +1,23 @@
+{
+    "bot_radius": 0.5,
+    "grid": {
+        "min_x": 0,
+        "max_x": 10,
+        "min_y": 0,
+        "max_y": 10,
+        "grid_spacing": 0.5
+    },
+    "obstacles": {
+        "radius": "random(0.01, .99)",
+        "count": 15
+    },
+    "start": "random",
+    "goal": "random",
+    "algorithm": {
+        "type": "RRT",
+        "params": {
+            "step_length": 0.5,
+            "sub_step_length": 0.1
+        }
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "bot_radius": 0.5,
+    "grid": {
+        "min_x": 0,
+        "max_x": 10,
+        "min_y": 0,
+        "max_y": 10,
+        "grid_spacing": 0.5
+    },
+    "start": {
+        "x": 2,
+        "y": 2
+    },
+    "goal": {
+        "x": 8,
+        "y": 9
+    },
+    "obstacles": {
+        "file": "obstacle_lists/10x.csv",
+        "radius": 0.5
+    },
+    "algorithm": {
+        "type": "AStar",
+        "params": {
+        }
+    }
+}

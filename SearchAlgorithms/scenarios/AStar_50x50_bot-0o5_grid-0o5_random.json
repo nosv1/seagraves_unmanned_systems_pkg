@@ -1,0 +1,21 @@
+{
+    "bot_radius": 0.49,
+    "grid": {
+        "min_x": 0,
+        "max_x": 50,
+        "min_y": 0,
+        "max_y": 50,
+        "grid_spacing": 0.5
+    },
+    "start": "random",
+    "goal": "random",
+    "obstacles": {
+        "count": 750,
+        "radius": "random(0.01, 1)"
+    },
+    "algorithm": {
+        "type": "AStar",
+        "params": {
+        }
+    }
+}

@@ -3,7 +3,7 @@ from setuptools import setup
 package_name = 'seagraves_unmanned_systems_pkg'
 support_moudle = 'support_module'
 path_follower = 'seagraves_unmanned_systems_pkg/PathFollower'
-search_algorithms = 'seagraves_unmanned_systems/SearchAlgorithms'
+search_algorithms = 'SearchAlgorithms'
 
 setup(
     name=package_name,

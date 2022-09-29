@@ -17,7 +17,7 @@ from rosgraph_msgs.msg import Clock
 # path follower imports
 from Point import Point as PathPoint
 from Waypoint import Waypoint
-from seagraves_unmanned_systems.SearchAlgorithms.Scenario import Scenario
+from SearchAlgorithms.Scenario import Scenario
 
 # support module imports
 from support_module.Logger import Logger
