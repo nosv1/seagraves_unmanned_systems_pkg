@@ -73,24 +73,7 @@ class PathFollower(Node):
             w=self.orientation.w,
         )
 
-        desired_heading: float = PathPoint(
-            x=self.position.x,
-            y=self.position.y,
-            z=0
-        ).heading_to(self.current_waypoint)
-        desired_heading = (
-            desired_heading - 2 * pi
-            if desired_heading - self.yaw > pi
-            else desired_heading
-        )
-
-        self.twist.angular.z = clamp(
-            self.PID.update(
-                desired=desired_heading, actual=self.yaw, dt=self.dt
-            ), -2.84, 2.84
-        )
-        self.twist.linear.x = 0.6
-        self.move()
+        self.update()
 
     def clock_callback(self, msg: Clock) -> None:
         self.previous_sim_time = self.current_sim_time
@@ -110,6 +93,25 @@ class PathFollower(Node):
 
     def update(self):
         self.switch_waypoint()
+
+        desired_heading: float = PathPoint(
+            x=self.position.x,
+            y=self.position.y,
+            z=0
+        ).heading_to(self.current_waypoint)
+        desired_heading = (
+            desired_heading - 2 * pi
+            if desired_heading - self.yaw > pi
+            else desired_heading
+        )
+
+        self.twist.angular.z = clamp(
+            self.PID.update(
+                desired=desired_heading, actual=self.yaw, dt=self.dt
+            ), -2.84, 2.84
+        )
+        self.twist.linear.x = 0.6
+        self.move()
 
 def main() -> None:
     rclpy.init()
