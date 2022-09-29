@@ -105,11 +105,11 @@ def main() -> None:
     fig = plt.figure()
     plt.style.use('dark_background')
     plt.set_cmap("Blues")
-    position_subplot = plt.subplot2grid((4, 2), (0, 0), colspan=1)
-    rotation_subplot = plt.subplot2grid((4, 2), (1, 0), colspan=1)
-    command_subplot = plt.subplot2grid((4, 2), (2, 0), colspan=1)
-    waypoint_subplot = plt.subplot2grid((4, 2), (3, 0), colspan=1)
-    xy_subplot = plt.subplot2grid((4, 2), (0, 1), rowspan=4)
+    position_subplot = plt.subplot2grid((3, 2), (0, 0), colspan=1)
+    rotation_subplot = plt.subplot2grid((3, 2), (1, 0), colspan=1)
+    command_subplot = plt.subplot2grid((3, 2), (2, 0), colspan=1)
+    # waypoint_subplot = plt.subplot2grid((3, 2), (3, 0), colspan=1)
+    xy_subplot = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
 
     twin_position = position_subplot.twinx()
     twin_command = command_subplot.twinx()
@@ -123,7 +123,7 @@ def main() -> None:
         rotation_subplot, 
         command_subplot, 
         twin_command,
-        waypoint_subplot,
+        # waypoint_subplot,
         xy_subplot,
     ]:
         subplot.set_facecolor(Colors.grey)
@@ -135,20 +135,22 @@ def main() -> None:
     position_subplot.set_title("Position")
     rotation_subplot.set_title("Rotation")
     command_subplot.set_title("Commands")
-    waypoint_subplot.set_title("Waypoints")
+    # waypoint_subplot.set_title("Waypoints")
     xy_subplot.set_title("XY Position")
 
     # plotting
     position_subplot.plot(current_time, current_x, color=Colors.red, label="x")
     twin_position.plot(current_time, current_y, color=Colors.blue, label="y")
+    position_subplot.plot(waypoint_time, waypoint_x, color=Colors.red, linestyle="dashed", label="waypoint x")
+    twin_position.plot(waypoint_time, waypoint_y, color=Colors.blue, linestyle="dashed", label="waypoint y")
 
     rotation_subplot.plot(heading_time, heading_actual, color=Colors.red, label="actual yaw")
     rotation_subplot.plot(heading_time, heading_desired, color=Colors.blue, label="desired yaw")
 
-    command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=4)
-    twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o", markersize=4)
+    command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=2)
+    twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o", markersize=2)
 
-    waypoint_subplot.plot(waypoint_number_time, waypoint_number, color=Colors.red, label="waypoint number")
+    # waypoint_subplot.plot(waypoint_number_time, waypoint_number, color=Colors.red, label="waypoint number")
 
     xy_subplot.scatter(current_x, current_y, c=current_time, label="xy", marker="o", s=4)
     xy_subplot.plot(waypoint_x, waypoint_y, color=Colors.red, label="waypoints", marker="o", markersize=4)
@@ -171,8 +173,9 @@ def main() -> None:
 
     command_subplot.set_ylabel('x (m/s)')
     twin_command.set_ylabel('yaw (rad/s)', rotation=270, labelpad=15)
+    command_subplot.set_xlabel('time (s)')
 
-    waypoint_subplot.set_xlabel('time (s)')
+    # waypoint_subplot.set_xlabel('time (s)')
 
     xy_subplot.set_xlabel('x (m)')
     xy_subplot.set_ylabel('y (m)')
@@ -183,7 +186,7 @@ def main() -> None:
     rotation_subplot.legend(loc='upper left')
     command_subplot.legend(loc='upper left')
     twin_command.legend(loc='upper right')
-    waypoint_subplot.legend(loc='upper left')
+    # waypoint_subplot.legend(loc='upper left')
     xy_subplot.legend()
 
     # plot colorbar for xy subplot
