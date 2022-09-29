@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from Point import Point
 
 class Waypoint(Point):
@@ -8,6 +10,13 @@ class Waypoint(Point):
 
     def __str__(self) -> str:
         return super().__str__()
+
+    def __eq__(self, other: Waypoint) -> bool:
+        return (
+            super().__eq__(other) and 
+            self.exit_yaw == other.exit_yaw and 
+            self.radius == other.radius
+        )
 
     def point_within_radius(self, point: Point) -> bool:
         return self.distance_to(point) < self.radius

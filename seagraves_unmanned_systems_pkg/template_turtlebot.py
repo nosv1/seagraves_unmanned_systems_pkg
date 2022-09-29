@@ -33,7 +33,9 @@ class TemplateTurtlebot(Node):
         self.previous_wall_time: float = 0.0
         self.current_wall_time: float = self.get_clock().now().nanoseconds / 1e9
         self.dt: float = 0.0
-        self.current_sim_time: float = 0.0
+        self.sim_current_time: float = 0.0
+        self.sim_start_time: float = None
+        self.sim_elapsed_time: float = 0.0
 
     def move(self):
         self.cmd_vel_publisher.publish(self.twist)
@@ -46,8 +48,9 @@ class TemplateTurtlebot(Node):
         self.dt = self.current_wall_time - self.previous_wall_time
 
     def clock_callback(self, msg: Clock) -> None:
-        self.previous_sim_time = self.current_sim_time
         self.current_sim_time = msg.clock.sec + msg.clock.nanosec / 1e9
+        self.sim_start_time = self.sim_start_time if self.sim_start_time else self.current_sim_time
+        self.sim_elapsed_time = self.current_sim_time - self.sim_start_time
 
     def update(self):
         return

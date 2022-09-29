@@ -11,6 +11,13 @@ class Point:
     def __str__(self) -> str:
         return f"[{self.x}, {self.y}, {self.z}]"
 
+    def __eq__(self, other: Point) -> bool:
+        return (
+            self.x == other.x and 
+            self.y == other.y and 
+            self.z == other.z
+        )
+
     def distance_to(self, other: Point) -> float:
         dx: float = self.x - other.x
         dy: float = self.y - other.y

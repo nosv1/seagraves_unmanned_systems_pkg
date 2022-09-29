@@ -15,6 +15,7 @@ def main() -> None:
     heading_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/heading_log.csv")
     command_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/command_log.csv")
     pose_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/pose_log.csv")
+    waypoint_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/waypoint_log.csv")
 
     # create two sub plots
     # one plot is an x y position graph where the color of the line is a funciton of the time
@@ -32,44 +33,83 @@ def main() -> None:
     command_x: list[float] = []   # forward
     command_yaw: list[float] = []  # z in the angular vector
 
+    heading_time: list[float] = []
+    heading_desired: list[float] = []
+    heading_actual: list[float] = []
+
+    waypoint_time: list[float] = []
+    waypoint_x: list[float] = []
+    waypoint_y: list[float] = []
+    waypoint_z: list[float] = []
+
+    waypoint_number_time: list[float] = []
+    waypoint_number: list[int] = []
+
     start_time: int = None
 
     # time,position_x,position_y,position_z,roll,pitch,yaw
     for line in pose_log[1:]:
-        current_time.append(float(line.split(",")[0]))
+        line = line.split(",")
+
+        current_time.append(float(line[0]))
         if start_time is None:
             start_time = int(current_time[-1])
             current_time[-1] = 0
         else:
             current_time[-1] -= start_time
-        current_x.append(float(line.split(",")[1]))
-        current_y.append(float(line.split(",")[2]))
-        current_z.append(float(line.split(",")[3]))
-        current_roll.append(float(line.split(",")[4]))
-        current_pitch.append(float(line.split(",")[5]))
-        current_yaw.append(float(line.split(",")[6]))
+        current_x.append(float(line[1]))
+        current_y.append(float(line[2]))
+        current_z.append(float(line[3]))
+        current_roll.append(float(line[4]))
+        current_pitch.append(float(line[5]))
+        current_yaw.append(float(line[6]))
         
     # time,linear_x,linear_y,linear_z,angular_x,angular_y,angular_z
     for line in command_log[1:]:
-        line_time = float(line.split(",")[0])
+        line = line.split(",")
+
+        line_time = float(line[0])
         if command_time:
             command_time.append(line_time - start_time)
             command_x.append(command_x[-1])
             command_yaw.append(command_yaw[-1])
 
-        command_time.append(float(line.split(",")[0]) - start_time)
-        command_x.append(float(line.split(",")[1]))
-        command_yaw.append(float(line.split(",")[6]))
+        command_time.append(float(line[0]) - start_time)
+        command_x.append(float(line[1]))
+        command_yaw.append(float(line[6]))
 
     # time,desired_heading,actual_heading
+    for line in heading_log[1:]:
+        line = line.split(",")
+        
+        heading_time.append(float(line[0]) - start_time)
+        heading_desired.append(float(line[1]))
+        heading_actual.append(float(line[2]))
+
+    # time,waypoint_x,waypoint_y,waypoint_z
+    for i, line in enumerate(waypoint_log[1:]):
+        line = line.split(",")
+
+        if waypoint_time:
+            waypoint_number_time.append(float(line[0]) - start_time)
+            waypoint_number.append(waypoint_number[-1])            
+
+        waypoint_time.append(float(line[0]) - start_time)
+        waypoint_x.append(float(line[1]))
+        waypoint_y.append(float(line[2]))
+        waypoint_z.append(float(line[3]))
+
+        waypoint_number_time.append(float(line[0]) - start_time)
+        waypoint_number.append(i)
 
     fig = plt.figure()
     plt.style.use('dark_background')
     plt.set_cmap("Blues")
-    position_subplot = plt.subplot2grid((3, 2), (0, 0), colspan=1)
-    rotation_subplot = plt.subplot2grid((3, 2), (1, 0), colspan=1)
-    command_subplot = plt.subplot2grid((3, 2), (2, 0), colspan=1)
-    xy_subplot = plt.subplot2grid((3, 2), (0, 1), rowspan=3)
+    position_subplot = plt.subplot2grid((4, 2), (0, 0), colspan=1)
+    rotation_subplot = plt.subplot2grid((4, 2), (1, 0), colspan=1)
+    command_subplot = plt.subplot2grid((4, 2), (2, 0), colspan=1)
+    waypoint_subplot = plt.subplot2grid((4, 2), (3, 0), colspan=1)
+    xy_subplot = plt.subplot2grid((4, 2), (0, 1), rowspan=4)
 
     twin_position = position_subplot.twinx()
     twin_command = command_subplot.twinx()
@@ -83,6 +123,7 @@ def main() -> None:
         rotation_subplot, 
         command_subplot, 
         twin_command,
+        waypoint_subplot,
         xy_subplot,
     ]:
         subplot.set_facecolor(Colors.grey)
@@ -94,18 +135,25 @@ def main() -> None:
     position_subplot.set_title("Position")
     rotation_subplot.set_title("Rotation")
     command_subplot.set_title("Commands")
+    waypoint_subplot.set_title("Waypoints")
     xy_subplot.set_title("XY Position")
 
     # plotting
     position_subplot.plot(current_time, current_x, color=Colors.red, label="x")
     twin_position.plot(current_time, current_y, color=Colors.blue, label="y")
 
-    rotation_subplot.plot(current_time, current_yaw, color=Colors.red, label="yaw")
+    rotation_subplot.plot(heading_time, heading_actual, color=Colors.red, label="actual yaw")
+    rotation_subplot.plot(heading_time, heading_desired, color=Colors.blue, label="desired yaw")
 
     command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=4)
     twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o", markersize=4)
 
+    waypoint_subplot.plot(waypoint_number_time, waypoint_number, color=Colors.red, label="waypoint number")
+
     xy_subplot.scatter(current_x, current_y, c=current_time, label="xy", marker="o", s=4)
+    xy_subplot.plot(waypoint_x, waypoint_y, color=Colors.red, label="waypoints", marker="o", markersize=4)
+    xy_subplot.plot(waypoint_x[0], waypoint_y[0], color=Colors.green, label="start", marker="o", markersize=4)
+    xy_subplot.plot(waypoint_x[-1], waypoint_y[-1], color=Colors.white, label="end", marker="o", markersize=4)
 
     min_axis = min(min(current_x), min(current_y))
     max_axis = max(max(current_x), max(current_y))
@@ -114,12 +162,6 @@ def main() -> None:
     xy_subplot.set_xlim(min_axis, max_axis)
     xy_subplot.set_ylim(min_axis, max_axis)
     xy_subplot.set_aspect('equal')
-
-    waypoints: list[list[float], list[float]] = [
-        [0, 0, 2, 3],
-        [0, 1, 2, -3],
-    ]
-    xy_subplot.plot(waypoints[0], waypoints[1], color=Colors.red, label="waypoints", marker="o", markersize=4)
     
     # labels
     position_subplot.set_ylabel('x (m)')
@@ -127,9 +169,10 @@ def main() -> None:
 
     rotation_subplot.set_ylabel('yaw (deg)')
 
-    command_subplot.set_xlabel('time (s)')
     command_subplot.set_ylabel('x (m/s)')
     twin_command.set_ylabel('yaw (rad/s)', rotation=270, labelpad=15)
+
+    waypoint_subplot.set_xlabel('time (s)')
 
     xy_subplot.set_xlabel('x (m)')
     xy_subplot.set_ylabel('y (m)')
@@ -140,6 +183,7 @@ def main() -> None:
     rotation_subplot.legend(loc='upper left')
     command_subplot.legend(loc='upper left')
     twin_command.legend(loc='upper right')
+    waypoint_subplot.legend(loc='upper left')
     xy_subplot.legend()
 
     # plot colorbar for xy subplot
