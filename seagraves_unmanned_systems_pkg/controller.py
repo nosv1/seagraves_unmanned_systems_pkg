@@ -294,8 +294,8 @@ def main():
     # Waypoints \/\/\/
 
     problem_5_waypoints: list[Waypoint] = [
-        Waypoint(x=0, y=0),
-        Waypoint(x=0, y=1),
+        Waypoint(x=1, y=1),
+        Waypoint(x=1, y=1),
         Waypoint(x=2, y=2),
         Waypoint(x=3, y=-3),
     ]

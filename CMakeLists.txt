@@ -31,7 +31,7 @@ include_directories(include)
 ament_python_install_package(support_module)
 # Install Python executables
 install(PROGRAMS
-  scripts/controller.py
+  # scripts/controller.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()

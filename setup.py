@@ -1,12 +1,14 @@
 from setuptools import setup
 
-package_name = 'scripts'
+package_name = 'seagraves_unmanned_systems_pkg'
 support_moudle = 'support_module'
+path_follower = 'seagraves_unmanned_systems_pkg/PathFollower'
+search_algorithms = 'seagraves_unmanned_systems/SearchAlgorithms'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name, support_moudle],
+    packages=[package_name, support_moudle, path_follower, search_algorithms],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -21,7 +23,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'controller = scripts.controller:main',
+            'controller = seagraves_unmanned_systems_pkg.controller:main',
+            'multi_bots = seagraves_unmanned_systems_pkg.multi_bots:main',
+            'path_follower = seagraves_unmanned_systems_pkg.PathFollower.path_follower:main',
         ],
     },
 )
