@@ -121,6 +121,11 @@ class PathFollower(Node):
                 current_waypoint.y, 
                 current_waypoint.z
             ])
+            self.PID.prev_error = 0.0
+            # self.PID.integral = 0.0  
+            # is this needed? /\/\/\/\
+            # or when switching waypoints should you use an average integral 
+            # based on past waypoints?
             self.path_complete = current_waypoint == self.waypoints[0]
             if not self.path_complete:
                 self.current_waypoint_index += -1

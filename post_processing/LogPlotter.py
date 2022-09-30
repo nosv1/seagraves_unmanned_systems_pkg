@@ -138,31 +138,49 @@ def main() -> None:
     # waypoint_subplot.set_title("Waypoints")
     xy_subplot.set_title("XY Position")
 
+    min_position_axis = min(min(current_x), min(current_y))
+    max_position_axis = max(max(current_x), max(current_y))
+    min_position_axis = min_position_axis - (max_position_axis - min_position_axis) / 10
+    max_position_axis = (max_position_axis - min_position_axis) / 10 + max_position_axis
+
     # plotting
+    # position subplot
+    # plotting vertical lines for each waypoint
+    middle_x: float = max(waypoint_x) / 2
+    for i, time in enumerate(waypoint_number_time):
+        # position_subplot.text(time, middle_x, str(waypoint_number[i]), color=Colors.white)
+        position_subplot.axvline(time, color=Colors.light_grey, linestyle="dashed", alpha=0.2)
+
     position_subplot.plot(current_time, current_x, color=Colors.red, label="x")
     twin_position.plot(current_time, current_y, color=Colors.blue, label="y")
     position_subplot.plot(waypoint_time, waypoint_x, color=Colors.red, linestyle="dashed", label="waypoint x")
     twin_position.plot(waypoint_time, waypoint_y, color=Colors.blue, linestyle="dashed", label="waypoint y")
 
+    position_subplot.set_ylim(min_position_axis, max_position_axis)
+    twin_position.set_ylim(min_position_axis, max_position_axis)
+    xy_subplot.set_aspect('equal')
+
+    # rotation subplot
     rotation_subplot.plot(heading_time, heading_actual, color=Colors.red, label="actual yaw")
     rotation_subplot.plot(heading_time, heading_desired, color=Colors.blue, label="desired yaw")
 
+    # command subplot
     command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=2)
     twin_command.plot(command_time, command_yaw, color=Colors.blue, label="yaw", marker="o", markersize=2)
 
     # waypoint_subplot.plot(waypoint_number_time, waypoint_number, color=Colors.red, label="waypoint number")
 
+    # xy subplot
     xy_subplot.scatter(current_x, current_y, c=current_time, label="xy", marker="o", s=4)
     xy_subplot.plot(waypoint_x, waypoint_y, color=Colors.red, label="waypoints", marker="o", markersize=4)
     xy_subplot.plot(waypoint_x[0], waypoint_y[0], color=Colors.green, label="start", marker="o", markersize=4)
     xy_subplot.plot(waypoint_x[-1], waypoint_y[-1], color=Colors.white, label="end", marker="o", markersize=4)
 
-    min_axis = min(min(current_x), min(current_y))
-    max_axis = max(max(current_x), max(current_y))
-    min_axis = min_axis - (max_axis - min_axis) / 10
-    max_axis = (max_axis - min_axis) / 10 + max_axis
-    xy_subplot.set_xlim(min_axis, max_axis)
-    xy_subplot.set_ylim(min_axis, max_axis)
+    for i, waypoint in enumerate(zip(waypoint_x, waypoint_y)):
+        xy_subplot.text(waypoint[0], waypoint[1], f"{i}", color=Colors.white, ha="center", va="center")
+
+    xy_subplot.set_xlim(min_position_axis, max_position_axis)
+    xy_subplot.set_ylim(min_position_axis, max_position_axis)
     xy_subplot.set_aspect('equal')
     
     # labels
