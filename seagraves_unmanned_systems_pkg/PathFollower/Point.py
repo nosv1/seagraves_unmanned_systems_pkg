@@ -27,4 +27,5 @@ class Point:
     def heading_to(self, other: Point) -> float:
         dx: float = other.x - self.x
         dy: float = other.y - self.y
-        return atan2(dy, dx)
+        heading: float = atan2(dy, dx)
+        return heading if heading >= 0 else heading + 2 * pi
