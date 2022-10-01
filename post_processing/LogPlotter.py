@@ -116,7 +116,7 @@ def main() -> None:
 
     fig.set_size_inches(9, 6)
 
-    fig.set_facecolor(Colors.grey)
+    fig.set_facecolor(Colors.dark_grey)
     for subplot in [
         position_subplot, 
         twin_position,
@@ -127,10 +127,10 @@ def main() -> None:
         xy_subplot,
     ]:
         subplot.set_facecolor(Colors.grey)
-        subplot.title.set_color(Colors.light_grey)
-        subplot.xaxis.label.set_color(Colors.light_grey)
-        subplot.yaxis.label.set_color(Colors.light_grey)
-        subplot.tick_params(colors=Colors.light_grey)
+        subplot.title.set_color(Colors.grey)
+        subplot.xaxis.label.set_color(Colors.grey)
+        subplot.yaxis.label.set_color(Colors.grey)
+        subplot.tick_params(colors=Colors.grey)
     
     position_subplot.set_title("Position")
     rotation_subplot.set_title("Rotation")

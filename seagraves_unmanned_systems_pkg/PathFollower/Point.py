@@ -9,7 +9,7 @@ class Point:
         self.z: float = z
 
     def __str__(self) -> str:
-        return f"[{self.x}, {self.y}, {self.z}]"
+        return f"[{self.x:.1f}, {self.y:.1f}, {self.z:.1f}]"
 
     def __eq__(self, other: Point) -> bool:
         return (
