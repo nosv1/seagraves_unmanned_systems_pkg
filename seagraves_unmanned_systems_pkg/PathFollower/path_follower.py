@@ -15,8 +15,8 @@ from rclpy.subscription import Subscription
 from rosgraph_msgs.msg import Clock
 
 # path follower imports
-from Point import Point as PathPoint
-from Waypoint import Waypoint
+from .Point import Point as PathPoint
+from .Waypoint import Waypoint
 from SearchAlgorithms.Scenario import Scenario
 
 # support module imports

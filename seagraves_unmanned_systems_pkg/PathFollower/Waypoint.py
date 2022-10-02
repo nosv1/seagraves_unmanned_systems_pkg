@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from Point import Point
+from .Point import Point
 
 class Waypoint(Point):
     def __init__(self, x: float=0.0, y: float=0.0, z: float=0.0, yaw: float=0.0, radius: float=0) -> None:
