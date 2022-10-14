@@ -15,15 +15,15 @@ from rclpy.subscription import Subscription
 from rosgraph_msgs.msg import Clock
 
 # path follower imports
-from .Point import Point as PathPoint
-from .Waypoint import Waypoint
 from SearchAlgorithms.Scenario import Scenario
 
 # support module imports
 from support_module.Logger import Logger
-from support_module.quaternion_tools import euler_from_quaternion
-from support_module.PID import PID
 from support_module.math_tools import clamp
+from support_module.PID import PID
+from support_module.Point import Point as PathPoint
+from support_module.quaternion_tools import euler_from_quaternion
+from support_module.Waypoint import Waypoint
 
 class PathFollower(Node):
     def __init__(
