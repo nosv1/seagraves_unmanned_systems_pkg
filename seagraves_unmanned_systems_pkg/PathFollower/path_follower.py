@@ -26,17 +26,24 @@ from support_module.PID import PID
 from support_module.math_tools import clamp
 
 class PathFollower(Node):
-    def __init__(self, heading_PID: PID, throttle_PID: PID, max_speed: float, waypoints: list[Waypoint]) -> None:
-        super().__init__("path_follower")
+    def __init__(
+        self, 
+        heading_PID: PID, 
+        throttle_PID: PID, 
+        max_speed: float, 
+        max_turn_rate: float,
+        waypoints: list[Waypoint]
+    ) -> None:
+        super().__init__("turtle")
 
         self.cmd_vel_publisher: Publisher = self.create_publisher(
-            Twist, f"/cmd_vel", 10
+            Twist, f"/turtle/cmd_vel", 10
         )
         self.odom_subscriber: Subscription = self.create_subscription(
-            Odometry, f"/odom", self.odom_callback, 10
+            Odometry, f"/turtle/odom", self.odom_callback, 10
         )
         self.clock_subscriber: Subscription = self.create_subscription(
-            Clock, "/clock", self.clock_callback, 10
+            Clock, "/turtle/clock", self.clock_callback, 10
         )
 
         self.twist: Twist = Twist()
@@ -60,6 +67,7 @@ class PathFollower(Node):
         self.heading_PID = heading_PID
         self.throttle_PID = throttle_PID
         self.max_speed = max_speed
+        self.max_turn_rate = max_turn_rate
 
         # waypoints are reverse order due to pathfinder returning reverse order path
         self.waypoints: list[Waypoint] = waypoints
@@ -157,13 +165,19 @@ class PathFollower(Node):
         self.twist.angular.z = clamp(
             self.heading_PID.update(
                 desired=desired_heading, actual=self.yaw, dt=self.dt
-            ), -2.84, 2.84
+            ), -self.max_turn_rate, self.max_turn_rate
         )
-        self.twist.linear.x = clamp(
-            self.max_speed - self.throttle_PID.update(
-                desired=desired_heading, actual=self.yaw, dt=self.dt
-            ), 0.0, self.max_speed
-        )
+
+        if self.throttle_PID:
+            self.twist.linear.x = clamp(
+                self.max_speed - self.throttle_PID.update(
+                    desired=desired_heading, actual=self.yaw, dt=self.dt
+                ), 0.0, self.max_speed
+            )
+
+        else:
+            self.twist.linear.x = self.max_speed
+
         self.move()
 
         self.heading_logger.log([
@@ -176,28 +190,36 @@ def main() -> None:
     rclpy.init()
 
     print("Loading scenario...")
-    scenario: Scenario = Scenario().loader(
-        # "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/AStar_15x15_bot-0o5_grid-1o0.json"
-        "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/RRT_15x15_bot-0o5_grid-1o0.json"
-    )
+    # scenario: Scenario = Scenario().loader(
+    #     # "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/AStar_15x15_bot-0o5_grid-1o0.json"
+    #     "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/scenarios/RRT_15x15_bot-0o5_grid-1o0.json"
+    # )
 
     print("Finding path...")
-    scenario.algorithm.find_path()
+    # scenario.algorithm.find_path()
 
     print("Setting waypoints...")
     # Waypoints are stored in reverse order because the path finder creates the 
     # path starting at goal.
-    waypoints: list[Waypoint] = []
-    for node in scenario.algorithm.path:
-        waypoints.append(Waypoint(x=node.x, y=node.y, radius=0.1))
+    # waypoints: list[Waypoint] = []
+    # for node in scenario.algorithm.path:
+    #     waypoints.append(Waypoint(x=node.x, y=node.y, radius=0.1))
+
+    waypoints: list[Waypoint] = [
+        Waypoint(x=9, y=9, radius=0.1)
+    ]
 
     print("Initializing path_follower node...")
     path_follower: PathFollower = PathFollower(
         heading_PID=PID(kp=4.5, ki=0.0, kd=0.25),
         throttle_PID=PID(kp=0.4, ki=0.0, kd=0.02),
         max_speed=0.95,
+        max_turn_rate=2.84,
         waypoints=waypoints
     )
+
+    path_follower.throttle_PID = None
+    path_follower.max_speed = 0.5
 
     print(f"Following waypoints...")
     print(f"Next waypoint 1 / {len(path_follower.waypoints)}: {path_follower.current_waypoint}")
@@ -207,7 +229,7 @@ def main() -> None:
         if path_follower.path_complete:
             print("Path complete!")
             print(f"Elapsed sim time: {path_follower.sim_elapsed_time}")
-            print(f"Speed: {scenario.algorithm.path[0].total_cost / path_follower.sim_elapsed_time}")
+            # print(f"Speed: {scenario.algorithm.path[0].total_cost / path_follower.sim_elapsed_time}")
             print("Stopping turtlebot...")
             path_follower.twist.angular.z = 0.0
             path_follower.twist.linear.x = 0.0

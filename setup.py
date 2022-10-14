@@ -1,14 +1,21 @@
 from setuptools import setup
 
 package_name = 'seagraves_unmanned_systems_pkg'
-support_moudle = 'support_module'
 path_follower = 'seagraves_unmanned_systems_pkg/PathFollower'
 search_algorithms = 'SearchAlgorithms'
+support_moudle = 'support_module'
+tag_your_it = 'seagraves_unmanned_systems_pkg/TagYourIt'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name, support_moudle, path_follower, search_algorithms],
+    packages=[
+        package_name, 
+        path_follower, 
+        search_algorithms, 
+        support_moudle, 
+        tag_your_it
+    ],
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -26,6 +33,7 @@ setup(
             'controller = seagraves_unmanned_systems_pkg.controller:main',
             'multi_bots = seagraves_unmanned_systems_pkg.multi_bots:main',
             'path_follower = seagraves_unmanned_systems_pkg.PathFollower.path_follower:main',
+            'pursuer = seagraves_unmanned_systems_pkg.TagYourIt.pursuer:main',
         ],
     },
 )
