@@ -10,6 +10,7 @@ from statistics import mean
 import rclpy
 
 # personal imports
+from support_module.Logger import Logger
 from support_module.math_tools import clamp
 from support_module.PID import PID
 from support_module.Point import Point
@@ -23,6 +24,7 @@ class Turtle(TurtleNode):
         throttle_PID: PID, 
         max_speed: float, 
         max_turn_rate: float,
+        PN_gain: float,
         **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -30,6 +32,10 @@ class Turtle(TurtleNode):
         self.throttle_PID = throttle_PID
         self.max_speed = max_speed
         self.max_turn_rate = max_turn_rate
+        self.PN_gain = PN_gain
+
+        self.__previous_los: float = float('nan')
+        self.__los: float = float('nan')
 
     def switch_waypoint(self):
         """
@@ -55,16 +61,13 @@ class Turtle(TurtleNode):
     def update(self):
         # self.switch_waypoint()
 
+        if self.last_callback != self.odom_callback:
+            return
+
         self.twist.angular.z = 0.0
         self.twist.linear.x = 0.0
 
-        if not self.orientation:
-            return
-
         if not self.detected_objects:
-            return
-
-        if not self.dt:
             return
 
         # get the desired heading
@@ -75,22 +78,15 @@ class Turtle(TurtleNode):
             w=self.orientation.w
         )
 
-        relative_angle = radians(mean([
+        relative_angle: float = radians(mean([
             d_o.angle for d_o in self.detected_objects]))
 
-        distance_to = mean([
+        distance_to: float = mean([
             d_o.distance for d_o in self.detected_objects])
-            
-        if relative_angle > pi:
-            relative_angle -= 2 * pi
-        relative_angle = -relative_angle
-
-        print(f"relative_angle: {degrees(relative_angle)}")
-        print(f"distance_to: {distance_to}")
 
         self.twist.angular.z = clamp(
             self.heading_PID.update(
-                desired=0, actual=relative_angle, dt=self.dt
+                desired=0, actual=-relative_angle, dt=self.dt
             ), -self.max_turn_rate, self.max_turn_rate
         )
 
@@ -99,25 +95,33 @@ class Turtle(TurtleNode):
                 self.max_speed - self.throttle_PID.update(
                     desired=1.5, actual=distance_to, dt=self.dt
                 ), 0.0, self.max_speed
-            )
+            ) 
 
         else:
             self.twist.linear.x = self.max_speed
 
         self.move()
 
+        self.heading_logger.log([
+            self.get_clock().now().nanoseconds / 1e9, 
+            degrees(0),
+            degrees(relative_angle)
+        ])
+
 def main() -> None:
     rclpy.init()
 
     pursuer: Turtle = Turtle(
-        heading_PID=PID(kp=2.5, ki=0.0, kd=0.25),
+        heading_PID=PID(kp=4.5, ki=0.0, kd=0.25),
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        name="")
+        PN_gain=3,
+        namespace='',
+        name="Pursuer")
 
-    # pursuer.throttle_PID = None
-    pursuer.max_speed = 0.7
+    pursuer.throttle_PID = None
+    pursuer.max_speed = 0.45
 
     while rclpy.ok():
         rclpy.spin_once(pursuer)

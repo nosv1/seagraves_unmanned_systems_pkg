@@ -9,7 +9,9 @@ class Logger:
         self.headers = headers
         self.filename = filename
 
-        self.file = open("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/" + self.filename, "w+")
+        self.file = open(
+            f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{self.filename}", 
+            "w+")
         self.log(self.headers)
 
     def log(self, data: list) -> None:

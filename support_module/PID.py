@@ -3,17 +3,22 @@ class PID:
         self.kp = kp
         self.ki = ki
         self.kd = kd
-        self.prev_error = 0.0
-        self.integral = 0.0
-        self.derivative = 0.0
+
+        self.__error = 0.0
+        self.__prev_error = 0.0
+        self.__integral = 0.0
+        self.__derivative = 0.0
+
+    def state_as_str(self) -> str:
+        return f"Error: {self.__error}, Integral: {self.__integral}, Derivative: {self.__derivative}"
 
     def update(self, desired: float, actual: float, dt: float) -> float:
-        error = desired - actual
-        self.integral += error * dt
-        self.derivative = (error - self.prev_error) / dt
-        self.prev_error = error
+        self.__error = desired - actual
+        self.__integral += self.__error * dt
+        self.__derivative = (self.__error - self.__prev_error) / dt
+        self.__prev_error = self.__error
         return (
-            self.kp * error + 
-            self.ki * self.integral + 
-            self.kd * self.derivative
+            self.kp * self.__error + 
+            self.ki * self.__integral + 
+            self.kd * self.__derivative
         )

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # python imports
 from math import degrees, pi
+from random import randint
 
 # ros2 imports
 from geometry_msgs.msg import Point, Quaternion, Twist
@@ -56,10 +57,10 @@ class PathFollower(Node):
         self.sim_start_time: float = None
         self.sim_elapsed_time: float = 0.0
 
-        self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="command_log.csv")
-        self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="heading_log.csv")
-        self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="pose_log.csv")
-        self.waypoint_logger = Logger(headers=["time", "waypoint_x", "waypoint_y", "waypoint_z"], filename="waypoint_log.csv")
+        self.command_logger = Logger(headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], filename="path_follower_command_log.csv")
+        self.heading_logger = Logger(headers=["time", "desired_heading", "actual_heading"], filename="path_follower_heading_log.csv")
+        self.pose_logger = Logger(headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], filename="path_follower_pose_log.csv")
+        self.waypoint_logger = Logger(headers=["time", "waypoint_x", "waypoint_y", "waypoint_z"], filename="path_follower_waypoint_log.csv")
 
         self.roll: float = 0.0
         self.pitch: float = 0.0
@@ -137,6 +138,14 @@ class PathFollower(Node):
             # or when switching waypoints should you use an average integral 
             # based on past waypoints?
 
+            current_waypoint.x = randint(0, 10)
+            current_waypoint.y = randint(0, 10)
+            self.waypoints[self.current_waypoint_index] = current_waypoint
+            print(
+                f"Next Waypoint {self.current_waypoint_index * -1} / {len(self.waypoints)}: {self.current_waypoint}"
+            )
+            return
+
             self.path_complete = current_waypoint == self.waypoints[0]
             if not self.path_complete:
                 self.current_waypoint_index += -1
@@ -206,7 +215,7 @@ def main() -> None:
     #     waypoints.append(Waypoint(x=node.x, y=node.y, radius=0.1))
 
     waypoints: list[Waypoint] = [
-        Waypoint(x=9, y=9, radius=0.1)
+        Waypoint(x=0, y=5, radius=0.1)
     ]
 
     print("Initializing path_follower node...")
@@ -219,7 +228,7 @@ def main() -> None:
     )
 
     path_follower.throttle_PID = None
-    path_follower.max_speed = 0.5
+    path_follower.max_speed = 0.4
 
     print(f"Following waypoints...")
     print(f"Next waypoint 1 / {len(path_follower.waypoints)}: {path_follower.current_waypoint}")

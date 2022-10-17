@@ -12,10 +12,11 @@ def read_log_file(filename: str) -> list[str]:
     return lines
 
 def main() -> None:
-    heading_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/heading_log.csv")
-    command_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/command_log.csv")
-    pose_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/pose_log.csv")
-    waypoint_log: list[str] = read_log_file("/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/waypoint_log.csv")
+    turtle_name = "Pursuer"
+    heading_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_heading_log.csv")
+    command_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_command_log.csv")
+    pose_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_pose_log.csv")
+    # waypoint_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}waypoint_log.csv")
 
     # create two sub plots
     # one plot is an x y position graph where the color of the line is a funciton of the time
@@ -87,20 +88,20 @@ def main() -> None:
         heading_actual.append(float(line[2]))
 
     # time,waypoint_x,waypoint_y,waypoint_z
-    for i, line in enumerate(waypoint_log[1:]):
-        line = line.split(",")
+    # for i, line in enumerate(waypoint_log[1:]):
+    #     line = line.split(",")
 
-        if waypoint_time:
-            waypoint_number_time.append(float(line[0]) - start_time)
-            waypoint_number.append(waypoint_number[-1])            
+    #     if waypoint_time:
+    #         waypoint_number_time.append(float(line[0]) - start_time)
+    #         waypoint_number.append(waypoint_number[-1])            
 
-        waypoint_time.append(float(line[0]) - start_time)
-        waypoint_x.append(float(line[1]))
-        waypoint_y.append(float(line[2]))
-        waypoint_z.append(float(line[3]))
+    #     waypoint_time.append(float(line[0]) - start_time)
+    #     waypoint_x.append(float(line[1]))
+    #     waypoint_y.append(float(line[2]))
+    #     waypoint_z.append(float(line[3]))
 
-        waypoint_number_time.append(float(line[0]) - start_time)
-        waypoint_number.append(i)
+    #     waypoint_number_time.append(float(line[0]) - start_time)
+    #     waypoint_number.append(i)
 
     fig = plt.figure()
     plt.style.use('dark_background')
@@ -146,7 +147,6 @@ def main() -> None:
     # plotting
     # position subplot
     # plotting vertical lines for each waypoint
-    middle_x: float = max(waypoint_x) / 2
     for i, time in enumerate(waypoint_number_time):
         # position_subplot.text(time, middle_x, str(waypoint_number[i]), color=Colors.white)
         position_subplot.axvline(time, color=Colors.light_grey, linestyle="dashed", alpha=0.2)
@@ -173,11 +173,11 @@ def main() -> None:
     # xy subplot
     xy_subplot.scatter(current_x, current_y, c=current_time, label="xy", marker="o", s=4)
     xy_subplot.plot(waypoint_x, waypoint_y, color=Colors.red, label="waypoints", marker="o", markersize=4)
-    xy_subplot.plot(waypoint_x[0], waypoint_y[0], color=Colors.green, label="start", marker="o", markersize=4)
-    xy_subplot.plot(waypoint_x[-1], waypoint_y[-1], color=Colors.white, label="end", marker="o", markersize=4)
+    # xy_subplot.plot(waypoint_x[0], waypoint_y[0], color=Colors.green, label="start", marker="o", markersize=4)
+    # xy_subplot.plot(waypoint_x[-1], waypoint_y[-1], color=Colors.white, label="end", marker="o", markersize=4)
 
-    for i, waypoint in enumerate(zip(waypoint_x, waypoint_y)):
-        xy_subplot.text(waypoint[0], waypoint[1], f"{i}", color=Colors.white, ha="center", va="center")
+    # for i, waypoint in enumerate(zip(waypoint_x, waypoint_y)):
+    #     xy_subplot.text(waypoint[0], waypoint[1], f"{i}", color=Colors.white, ha="center", va="center")
 
     xy_subplot.set_xlim(min_position_axis, max_position_axis)
     xy_subplot.set_ylim(min_position_axis, max_position_axis)
@@ -207,11 +207,12 @@ def main() -> None:
     # waypoint_subplot.legend(loc='upper left')
     xy_subplot.legend()
 
+
     # plot colorbar for xy subplot
     cbar = plt.colorbar(xy_subplot.collections[0], ax=xy_subplot)
     cbar.set_label('time (s)')
-    cbar.ax.yaxis.label.set_color(Colors.light_grey)
-    cbar.ax.tick_params(colors=Colors.light_grey)
+    cbar.ax.yaxis.label.set_color(Colors.grey)
+    cbar.ax.tick_params(colors=Colors.grey)
 
     fig.set_tight_layout(True)
     plt.show()
