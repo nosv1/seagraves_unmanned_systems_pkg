@@ -86,14 +86,14 @@ class Turtle(TurtleNode):
 
         self.twist.angular.z = clamp(
             self.heading_PID.update(
-                desired=0, actual=-relative_angle, dt=self.dt
+                desired=0, actual=-relative_angle, dt=self.lidar_dt
             ), -self.max_turn_rate, self.max_turn_rate
         )
 
         if self.throttle_PID:
             self.twist.linear.x = clamp(
                 self.max_speed - self.throttle_PID.update(
-                    desired=1.5, actual=distance_to, dt=self.dt
+                    desired=1.5, actual=distance_to, dt=self.lidar_dt
                 ), 0.0, self.max_speed
             ) 
 
@@ -119,6 +119,13 @@ def main() -> None:
         PN_gain=3,
         namespace='',
         name="Pursuer")
+
+    for subscription in pursuer.subscriptions:
+        if subscription.topic_name == f"{pursuer.name}/odom":
+            pursuer.subscriptions.remove(subscription)
+        
+        elif subscription.topic_name == f"{pursuer.name}/clock":
+            pursuer.subscriptions.remove(subscription)
 
     pursuer.throttle_PID = None
     pursuer.max_speed = 0.45

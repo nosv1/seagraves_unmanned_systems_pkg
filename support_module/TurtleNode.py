@@ -27,6 +27,9 @@ class Turtle(Node):
     def __init__(self, namespace='', name='Turtle') -> None:
         super().__init__(name)
 
+        self.namespace = namespace
+        self.name = name
+
         self.cmd_vel_publisher: Publisher = self.create_publisher(
             Twist, f"{namespace}/cmd_vel", 10)
         self.odom_subscriber: Subscription = self.create_subscription(
@@ -48,12 +51,13 @@ class Turtle(Node):
 
         self.previous_wall_time: float = 0.0
         self.current_wall_time: float = self.get_clock().now().nanoseconds / 1e9
-        self.sim_previous_time: float = 0.0
         self.sim_current_time: float = 0.0
-        self.dt: float = 0.0
         self.sim_start_time: float = None
         self.sim_elapsed_time: float = 0.0
         self.detected_objects: list[DetectedObject] = []
+
+        self.odom_dt = 0.0
+        self.lidar_dt = 0.0
 
         self.command_logger = Logger(
             headers=["time", "linear_x", "linear_y", "linear_z", "angular_x", "angular_y", "angular_z"], 
@@ -85,7 +89,7 @@ class Turtle(Node):
         self.orientation = msg.pose.pose.orientation
         self.previous_wall_time = self.current_wall_time
         self.current_wall_time = self.get_clock().now().nanoseconds / 1e9
-        self.dt = self.current_wall_time - self.previous_wall_time
+        self.odom_dt = self.current_wall_time - self.previous_wall_time
 
         self.pose_logger.log([
             self.get_clock().now().nanoseconds / 1e9, 
@@ -100,14 +104,16 @@ class Turtle(Node):
     def clock_callback(self, msg: Clock) -> None:
         self.last_callback = self.clock_callback
 
-        self.sim_previous_time = self.sim_current_time
         self.current_sim_time = msg.clock.sec + msg.clock.nanosec / 1e9
         self.sim_start_time = self.sim_start_time if self.sim_start_time else self.current_sim_time
         self.sim_elapsed_time = self.current_sim_time - self.sim_start_time
-        self.dt = self.current_sim_time - self.sim_previous_time
 
     def lidar_callback(self, msg: LaserScan) -> None:
         self.last_callback = self.lidar_callback
+
+        self.previous_wall_time = self.current_wall_time
+        self.current_wall_time = self.get_clock().now().nanoseconds / 1e9
+        self.lidar_dt = self.current_wall_time - self.previous_wall_time
 
         self.detected_objects: list[DetectedObject] = []
         for i, distance in enumerate(msg.ranges):
