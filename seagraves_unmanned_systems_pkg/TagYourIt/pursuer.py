@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # python imports
-from math import degrees, pi, radians
+from math import degrees, isnan, pi, radians
 from statistics import mean
 
 # ros2 imports
@@ -58,17 +58,41 @@ class Turtle(TurtleNode):
                     f"Next Waypoint {self.current_waypoint_index * -1} / {len(self.waypoints)}: {self.current_waypoint}"
                 )
 
-    def update(self):
+    def PN(self) -> float:
+        relative_angle: float = radians(mean([
+            d_o.angle for d_o in self.detected_objects]))
+
+        if relative_angle > pi:
+            relative_angle -= 2 * pi
+
+        self.__previous_los = self.__los
+        self.__los = relative_angle
+
+        if isnan(self.__previous_los):
+            return self.yaw
+
+        delta_los: float = self.__los - self.__previous_los
+        desired_heading: float = self.yaw + self.PN_gain * delta_los
+
+        desired_heading = (
+            desired_heading - 2 * pi
+            if desired_heading - self.yaw > pi
+            else desired_heading
+        )
+
+        return desired_heading
+
+    def update(self) -> None:
         # self.switch_waypoint()
 
-        if self.last_callback != self.odom_callback:
+        if self.last_callback != self.lidar_callback:
+            return
+
+        if not self.detected_objects:
             return
 
         self.twist.angular.z = 0.0
         self.twist.linear.x = 0.0
-
-        if not self.detected_objects:
-            return
 
         # get the desired heading
         self.roll, self.pitch, self.yaw = euler_from_quaternion(
@@ -78,19 +102,17 @@ class Turtle(TurtleNode):
             w=self.orientation.w
         )
 
-        relative_angle: float = radians(mean([
-            d_o.angle for d_o in self.detected_objects]))
-
-        distance_to: float = mean([
-            d_o.distance for d_o in self.detected_objects])
-
+        desired_heading: float = self.PN()
+        print(f"desired_heading: {degrees(desired_heading)}")
         self.twist.angular.z = clamp(
             self.heading_PID.update(
-                desired=0, actual=-relative_angle, dt=self.lidar_dt
+                desired=desired_heading, actual=self.yaw, dt=self.lidar_dt
             ), -self.max_turn_rate, self.max_turn_rate
         )
 
         if self.throttle_PID:
+            distance_to: float = mean([
+                d_o.distance for d_o in self.detected_objects])
             self.twist.linear.x = clamp(
                 self.max_speed - self.throttle_PID.update(
                     desired=1.5, actual=distance_to, dt=self.lidar_dt
@@ -104,8 +126,8 @@ class Turtle(TurtleNode):
 
         self.heading_logger.log([
             self.get_clock().now().nanoseconds / 1e9, 
-            degrees(0),
-            degrees(relative_angle)
+            degrees(self.yaw),
+            degrees(desired_heading),
         ])
 
 def main() -> None:
@@ -116,7 +138,7 @@ def main() -> None:
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        PN_gain=3,
+        PN_gain=2,
         namespace='',
         name="Pursuer")
 
