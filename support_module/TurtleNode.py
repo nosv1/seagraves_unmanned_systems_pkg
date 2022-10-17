@@ -48,8 +48,9 @@ class Turtle(Node):
 
         self.previous_wall_time: float = 0.0
         self.current_wall_time: float = self.get_clock().now().nanoseconds / 1e9
-        self.dt: float = 0.0
+        self.sim_previous_time: float = 0.0
         self.sim_current_time: float = 0.0
+        self.dt: float = 0.0
         self.sim_start_time: float = None
         self.sim_elapsed_time: float = 0.0
         self.detected_objects: list[DetectedObject] = []
@@ -99,9 +100,11 @@ class Turtle(Node):
     def clock_callback(self, msg: Clock) -> None:
         self.last_callback = self.clock_callback
 
+        self.sim_previous_time = self.sim_current_time
         self.current_sim_time = msg.clock.sec + msg.clock.nanosec / 1e9
         self.sim_start_time = self.sim_start_time if self.sim_start_time else self.current_sim_time
         self.sim_elapsed_time = self.current_sim_time - self.sim_start_time
+        self.dt = self.current_sim_time - self.sim_previous_time
 
     def lidar_callback(self, msg: LaserScan) -> None:
         self.last_callback = self.lidar_callback
