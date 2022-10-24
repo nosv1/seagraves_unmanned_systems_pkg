@@ -1,7 +1,7 @@
 #!usr/env/bin python3
 
 # python imports
-from math import degrees
+from math import degrees, isinf
 
 # ros2 imports
 from geometry_msgs.msg import Point, Quaternion, Twist
@@ -33,11 +33,11 @@ class Turtle(Node):
         self.cmd_vel_publisher: Publisher = self.create_publisher(
             Twist, f"{namespace}/cmd_vel", 10)
         self.odom_subscriber: Subscription = self.create_subscription(
-            Odometry, f"{namespace}/odom", self.odom_callback, 10)
+            Odometry, f"{namespace}/odom", self.__odom_callback, 10)
         self.clock_subscriber: Subscription = self.create_subscription(
-            Clock, f"{namespace}/clock", self.clock_callback, 10)
+            Clock, f"{namespace}/clock", self.__clock_callback, 10)
         self.lidar_subscriber: Subscription = self.create_subscription(
-            LaserScan, f"{namespace}/scan", self.lidar_callback, 10)
+            LaserScan, f"{namespace}/scan", self.__lidar_callback, 10)
 
         self.last_callback = None
 
@@ -68,6 +68,9 @@ class Turtle(Node):
         self.pose_logger = Logger(
             headers=["time", "position_x", "position_y", "position_z", "roll", "pitch", "yaw"], 
             filename=f"{name}_pose_log.csv")
+        self.lidar_logger = Logger(
+            headers=["time", "num_objects"],
+            filename=f"{name}_lidar_log.csv")
 
     def move(self):
         self.cmd_vel_publisher.publish(self.twist)
@@ -82,8 +85,8 @@ class Turtle(Node):
             self.twist.angular.z
         ])
 
-    def odom_callback(self, msg: Odometry) -> None:
-        self.last_callback = self.odom_callback
+    def __odom_callback(self, msg: Odometry) -> None:
+        self.last_callback = self.__odom_callback
 
         self.position = msg.pose.pose.position
         self.orientation = msg.pose.pose.orientation
@@ -101,15 +104,15 @@ class Turtle(Node):
             degrees(self.yaw)
         ])
 
-    def clock_callback(self, msg: Clock) -> None:
-        self.last_callback = self.clock_callback
+    def __clock_callback(self, msg: Clock) -> None:
+        self.last_callback = self.__clock_callback
 
         self.current_sim_time = msg.clock.sec + msg.clock.nanosec / 1e9
         self.sim_start_time = self.sim_start_time if self.sim_start_time else self.current_sim_time
         self.sim_elapsed_time = self.current_sim_time - self.sim_start_time
 
-    def lidar_callback(self, msg: LaserScan) -> None:
-        self.last_callback = self.lidar_callback
+    def __lidar_callback(self, msg: LaserScan) -> None:
+        self.last_callback = self.__lidar_callback
 
         self.previous_wall_time = self.current_wall_time
         self.current_wall_time = self.get_clock().now().nanoseconds / 1e9
@@ -117,8 +120,13 @@ class Turtle(Node):
 
         self.detected_objects: list[DetectedObject] = []
         for i, distance in enumerate(msg.ranges):
-            if distance != float("inf"):
-                angle = i if i < 180 else i - 360
+            if not isinf(distance):
+                angle: float = float(i if i < 180 else i - 360)
                 detected_object: DetectedObject = DetectedObject(
                     distance=distance, angle=angle)
                 self.detected_objects.append(detected_object)
+
+        self.lidar_logger.log([
+            self.get_clock().now().nanoseconds / 1e9,
+            len(self.detected_objects)
+        ])
