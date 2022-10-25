@@ -215,7 +215,7 @@ def main() -> None:
     #     waypoints.append(Waypoint(x=node.x, y=node.y, radius=0.1))
 
     waypoints: list[Waypoint] = [
-        Waypoint(x=0, y=5, radius=0.1)
+        Waypoint(x=9, y=9, radius=0.1)
     ]
 
     print("Initializing path_follower node...")

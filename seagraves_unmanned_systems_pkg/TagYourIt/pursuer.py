@@ -45,10 +45,16 @@ class Turtle(TurtleNode):
             w=self.orientation.w
         )
 
+        desired_heading = (
+            self.PN.desired_heading - 2 * pi
+            if self.PN.desired_heading - self.yaw > pi
+            else self.PN.desired_heading
+        )
+
         self.twist.angular.z = clamp(
-            self.PN.desired_heading_dot if self.PN.desired_heading_dot > 3 else 0.0,
-            -self.max_turn_rate,
-            self.max_turn_rate
+            self.heading_PID.update(
+                desired=desired_heading, actual=self.yaw, dt=self.odom_dt
+            ), -self.max_turn_rate, self.max_turn_rate
         )
 
         if self.throttle_PID:
@@ -73,10 +79,10 @@ class Turtle(TurtleNode):
 
     def on_lidar_callback(self) -> None:
         # get angle of closest object
-        # relative_angle: float = radians(min(
-        #     self.detected_objects, key=lambda d_o: d_o.distance).angle)
-        relative_angle: float = radians(mean([
-            d_o.angle for d_o in self.detected_objects]))
+        relative_angle: float = radians(min(
+            self.detected_objects, key=lambda d_o: d_o.distance).angle)
+        # relative_angle: float = radians(mean([
+        #     d_o.angle for d_o in self.detected_objects]))
 
         # convert [0, 2pi) to (-pi, pi]
         # relative_angle = (
@@ -87,7 +93,8 @@ class Turtle(TurtleNode):
 
         self.PN.PN(
             new_los=relative_angle,
-            dt=self.lidar_dt
+            dt=self.lidar_dt,
+            current_yaw=self.yaw
         )
         
         self.twist.angular.z = clamp(
@@ -96,9 +103,7 @@ class Turtle(TurtleNode):
             -self.max_turn_rate,
             self.max_turn_rate
         )
-
         self.twist.linear.x = self.max_speed
-        
         self.move()
 
     def update(self) -> None:
