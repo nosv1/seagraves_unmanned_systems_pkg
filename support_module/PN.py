@@ -20,6 +20,10 @@ class PN:
             self.__desired_heading_dot = 0.0
             return
 
-        los_dot: float = (self.__los - self.__previous_los) / dt
+        # how is this PN? isn't this just chasing not intercepting?
+        # how is this different to just setting the desired heading for a PID to be the LOS?
+        # self.__desired_heading_dot = (self.gain * new_los) / dt
+
+        los_dot: float = abs((self.__los - self.__previous_los)) / dt
         self.__desired_heading_dot: float = self.gain * los_dot
         

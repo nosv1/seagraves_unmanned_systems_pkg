@@ -45,10 +45,8 @@ class Turtle(TurtleNode):
             w=self.orientation.w
         )
 
-        print(f"Desired heading dot: {degrees(self.PN.desired_heading_dot)}")
-
         self.twist.angular.z = clamp(
-            self.PN.desired_heading_dot,
+            self.PN.desired_heading_dot if self.PN.desired_heading_dot > 3 else 0.0,
             -self.max_turn_rate,
             self.max_turn_rate
         )
@@ -75,23 +73,32 @@ class Turtle(TurtleNode):
 
     def on_lidar_callback(self) -> None:
         # get angle of closest object
-        relative_angle: float = radians(min(
-            self.detected_objects, key=lambda d_o: d_o.distance).angle)
+        # relative_angle: float = radians(min(
+        #     self.detected_objects, key=lambda d_o: d_o.distance).angle)
+        relative_angle: float = radians(mean([
+            d_o.angle for d_o in self.detected_objects]))
 
-        # convert [0, 360) to (-180, 180]
-        relative_angle = (
-            relative_angle - 2 * pi
-            if relative_angle > pi
-            else relative_angle
-        )
+        # convert [0, 2pi) to (-pi, pi]
+        # relative_angle = (
+        #     relative_angle - 2 * pi
+        #     if relative_angle > pi
+        #     else relative_angle
+        # )
 
         self.PN.PN(
             new_los=relative_angle,
             dt=self.lidar_dt
         )
+        
+        self.twist.angular.z = clamp(
+            self.PN.desired_heading_dot
+                * (-1 if relative_angle < 0 else 1),
+            -self.max_turn_rate,
+            self.max_turn_rate
+        )
 
-        self.twist.angular.z = self.PN.desired_heading_dot
         self.twist.linear.x = self.max_speed
+        
         self.move()
 
     def update(self) -> None:
@@ -114,7 +121,7 @@ def main() -> None:
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        PN_gain=0.3,
+        PN_gain=0.15,
         namespace='',
         name="Pursuer")
 
