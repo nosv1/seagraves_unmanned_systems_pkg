@@ -34,6 +34,7 @@ setup(
             'multi_bots = seagraves_unmanned_systems_pkg.multi_bots:main',
             'path_follower = seagraves_unmanned_systems_pkg.PathFollower.path_follower:main',
             'pursuer = seagraves_unmanned_systems_pkg.TagYourIt.pursuer:main',
+            'evader = seagraves_unmanned_systems_pkg.TagYourIt.evader:main',
         ],
     },
 )

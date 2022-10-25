@@ -12,7 +12,7 @@ def read_log_file(filename: str) -> list[str]:
     return lines
 
 def main() -> None:
-    turtle_name = "Pursuer"
+    turtle_name = "Evader"
     heading_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_heading_log.csv")
     command_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_command_log.csv")
     pose_log: list[str] = read_log_file(f"/home/thomas/.ros/log/seagraves_unmanned_systems_pkg/{turtle_name}_pose_log.csv")
@@ -161,8 +161,8 @@ def main() -> None:
     xy_subplot.set_aspect('equal')
 
     # rotation subplot
-    rotation_subplot.plot(heading_time, heading_actual, color=Colors.red, label="actual yaw")
-    rotation_subplot.plot(heading_time, heading_desired, color=Colors.blue, label="desired yaw")
+    rotation_subplot.plot(heading_time, heading_actual, color=Colors.red, label="actual heading dot")
+    rotation_subplot.plot(heading_time, heading_desired, color=Colors.blue, label="desired heading dot")
 
     # command subplot
     command_subplot.plot(command_time, command_x, color=Colors.red, label="x", marker="o", markersize=2)
@@ -200,7 +200,7 @@ def main() -> None:
 
     # legends
     position_subplot.legend(loc='upper left')
-    twin_position.legend(loc='upper right')
+    twin_position.legend(loc='lower right')
     rotation_subplot.legend(loc='upper left')
     command_subplot.legend(loc='upper left')
     twin_command.legend(loc='upper right')

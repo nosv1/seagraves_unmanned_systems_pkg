@@ -138,8 +138,8 @@ class PathFollower(Node):
             # or when switching waypoints should you use an average integral 
             # based on past waypoints?
 
-            current_waypoint.x = randint(0, 10)
-            current_waypoint.y = randint(0, 10)
+            current_waypoint.x = randint(0, 5)
+            current_waypoint.y = randint(0, 5)
             self.waypoints[self.current_waypoint_index] = current_waypoint
             print(
                 f"Next Waypoint {self.current_waypoint_index * -1} / {len(self.waypoints)}: {self.current_waypoint}"
@@ -215,7 +215,7 @@ def main() -> None:
     #     waypoints.append(Waypoint(x=node.x, y=node.y, radius=0.1))
 
     waypoints: list[Waypoint] = [
-        Waypoint(x=9, y=9, radius=0.1)
+        Waypoint(x=0, y=3, radius=0.1)
     ]
 
     print("Initializing path_follower node...")
@@ -233,8 +233,15 @@ def main() -> None:
     print(f"Following waypoints...")
     print(f"Next waypoint 1 / {len(path_follower.waypoints)}: {path_follower.current_waypoint}")
     while rclpy.ok():
-        rclpy.spin_once(path_follower)
+        path_follower.twist.linear.x = path_follower.max_speed
+        path_follower.twist.angular.z = 0.15
+        path_follower.move()
 
+        if degrees(path_follower.roll) > 1:
+            break
+        continue
+
+        rclpy.spin_once(path_follower)
         if path_follower.path_complete:
             print("Path complete!")
             print(f"Elapsed sim time: {path_follower.sim_elapsed_time}")

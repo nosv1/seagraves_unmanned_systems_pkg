@@ -1,7 +1,7 @@
 #!usr/env/bin python3
 
 # python imports
-from math import degrees, isinf
+from math import degrees, isinf, radians
 
 # ros2 imports
 from geometry_msgs.msg import Point, Quaternion, Twist
@@ -14,14 +14,7 @@ from sensor_msgs.msg import LaserScan
 
 # personal imports
 from support_module.Logger import Logger
-
-class DetectedObject:
-    def __init__(self, distance: float, angle: float):
-        self.distance = distance
-        self.angle = angle  # (-180, 180) degrees
-
-    def __str__(self):
-        return f"Range: {self.distance}, Angle: {self.angle}"
+from support_module.DetectedObject import DetectedObject
 
 class Turtle(Node):
     def __init__(self, namespace='', name='Turtle') -> None:
@@ -121,7 +114,7 @@ class Turtle(Node):
         self.detected_objects: list[DetectedObject] = []
         for i, distance in enumerate(msg.ranges):
             if not isinf(distance):
-                angle: float = float(i if i < 180 else i - 360)
+                angle: float = radians(float(i if i < 180 else i - 360))
                 detected_object: DetectedObject = DetectedObject(
                     distance=distance, angle=angle)
                 self.detected_objects.append(detected_object)
@@ -130,3 +123,9 @@ class Turtle(Node):
             self.get_clock().now().nanoseconds / 1e9,
             len(self.detected_objects)
         ])
+
+    def close_logs(self) -> None:
+        self.command_logger.close()
+        self.heading_logger.close()
+        self.pose_logger.close()
+        self.lidar_logger.close()

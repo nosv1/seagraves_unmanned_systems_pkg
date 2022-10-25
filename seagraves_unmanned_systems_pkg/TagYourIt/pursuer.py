@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # python imports
-from math import degrees, isnan, pi, radians
+from math import degrees, pi
 from numpy import mean
 
 # ros2 imports
@@ -69,7 +69,7 @@ class Turtle(TurtleNode):
         else:
             self.twist.linear.x = self.max_speed
 
-        self.move()
+        # self.move()
 
         # self.heading_logger.log([
         #     self.get_clock().now().nanoseconds / 1e9, 
@@ -79,17 +79,10 @@ class Turtle(TurtleNode):
 
     def on_lidar_callback(self) -> None:
         # get angle of closest object
-        relative_angle: float = radians(min(
-            self.detected_objects, key=lambda d_o: d_o.distance).angle)
-        # relative_angle: float = radians(mean([
-        #     d_o.angle for d_o in self.detected_objects]))
-
-        # convert [0, 2pi) to (-pi, pi]
-        # relative_angle = (
-        #     relative_angle - 2 * pi
-        #     if relative_angle > pi
-        #     else relative_angle
-        # )
+        # relative_angle: float = min(
+        #     self.detected_objects, key=lambda d_o: d_o.distance).angle)
+        relative_angle: float = mean([
+            d_o.angle for d_o in self.detected_objects])
 
         self.PN.PN(
             new_los=relative_angle,
@@ -106,12 +99,17 @@ class Turtle(TurtleNode):
         self.twist.linear.x = self.max_speed
         self.move()
 
+        self.heading_logger.log([
+            self.get_clock().now().nanoseconds / 1e9, 
+            degrees(self.twist.angular.z),
+            0,
+        ])
+
     def update(self) -> None:
         if not self.detected_objects:
             return
 
         if self.last_callback == self.__odom_callback:
-            return
             self.on_odom_callback()
 
         elif self.last_callback == self.__lidar_callback:
@@ -145,6 +143,10 @@ def main() -> None:
         rclpy.spin_once(pursuer)
         pursuer.update()
 
+        if degrees(pursuer.roll) > 1:
+            break
+
+    pursuer.close_logs()
     pursuer.destroy_node()
 
     rclpy.shutdown()
