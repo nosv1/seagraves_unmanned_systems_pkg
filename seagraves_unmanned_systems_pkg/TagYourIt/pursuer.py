@@ -77,6 +77,8 @@ class Turtle(TurtleNode):
         #     degrees(self.PN.desired_heading),
         # ])
 
+        return None
+
     def on_lidar_callback(self) -> None:
         # get angle of closest object
         # relative_angle: float = min(
@@ -105,15 +107,19 @@ class Turtle(TurtleNode):
             0,
         ])
 
+        return None
+
     def update(self) -> None:
         if not self.detected_objects:
-            return
+            return None
 
         if self.last_callback == self.__odom_callback:
             self.on_odom_callback()
 
         elif self.last_callback == self.__lidar_callback:
             self.on_lidar_callback()
+
+        return None
 
 
 def main() -> None:

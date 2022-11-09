@@ -35,6 +35,7 @@ setup(
             'path_follower = seagraves_unmanned_systems_pkg.PathFollower.path_follower:main',
             'pursuer = seagraves_unmanned_systems_pkg.TagYourIt.pursuer:main',
             'evader = seagraves_unmanned_systems_pkg.TagYourIt.evader:main',
+            'tester = seagraves_unmanned_systems_pkg.turtlebot_tester:main',
         ],
     },
 )
