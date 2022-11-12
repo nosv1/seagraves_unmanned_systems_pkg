@@ -1,4 +1,4 @@
-#!usr/env/bin python3
+#!usr/bin/env python3
 
 from __future__ import annotations
 
@@ -138,13 +138,13 @@ class PathFollower(Node):
             # or when switching waypoints should you use an average integral 
             # based on past waypoints?
 
-            current_waypoint.x = randint(0, 5)
-            current_waypoint.y = randint(0, 5)
-            self.waypoints[self.current_waypoint_index] = current_waypoint
-            print(
-                f"Next Waypoint {self.current_waypoint_index * -1} / {len(self.waypoints)}: {self.current_waypoint}"
-            )
-            return
+            # current_waypoint.x = randint(0, 5)
+            # current_waypoint.y = randint(0, 5)
+            # self.waypoints[self.current_waypoint_index] = current_waypoint
+            # print(
+            #     f"Next Waypoint {self.current_waypoint_index * -1} / {len(self.waypoints)}: {self.current_waypoint}"
+            # )
+            # return
 
             self.path_complete = current_waypoint == self.waypoints[0]
             if not self.path_complete:
@@ -233,13 +233,13 @@ def main() -> None:
     print(f"Following waypoints...")
     print(f"Next waypoint 1 / {len(path_follower.waypoints)}: {path_follower.current_waypoint}")
     while rclpy.ok():
-        path_follower.twist.linear.x = path_follower.max_speed
-        path_follower.twist.angular.z = 0.15
-        path_follower.move()
+        # path_follower.twist.linear.x = path_follower.max_speed
+        # path_follower.twist.angular.z = 0.15
+        # path_follower.move()
 
-        if degrees(path_follower.roll) > 1:
-            break
-        continue
+        # if degrees(path_follower.roll) > 1:
+        #     break
+        # continue
 
         rclpy.spin_once(path_follower)
         if path_follower.path_complete:

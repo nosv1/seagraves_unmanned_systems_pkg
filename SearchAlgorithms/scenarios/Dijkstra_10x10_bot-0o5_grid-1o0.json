@@ -1,0 +1,27 @@
+{
+    "bot_radius": 0.5,
+    "grid": {
+        "min_x": 0,
+        "max_x": 10,
+        "min_y": 0,
+        "max_y": 10,
+        "grid_spacing": 1.0
+    },
+    "start": {
+        "x": 2,
+        "y": 1
+    },
+    "goal": {
+        "x": 7,
+        "y": 2
+    },
+    "obstacles": {
+        "file": "/home/thomas/ros2_ws/src/seagraves_unmanned_systems_pkg/SearchAlgorithms/obstacle_lists/10xd.csv",
+        "radius": 0.49
+    },
+    "algorithm": {
+        "type": "Dijkstra",
+        "params": {
+        }
+    }
+}

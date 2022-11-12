@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from Grid import Grid
-from Node import Node
-from Stopwatch import Stopwatch
+from .Grid import Grid
+from .Node import Node
+from .Stopwatch import Stopwatch
 
 class PathFinder:
     def __init__(

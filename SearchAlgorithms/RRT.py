@@ -2,9 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 
-from Colors import Colors
-from Node import Node
-from PathFinder import PathFinder
+from .Colors import Colors
+from .Node import Node
+from .PathFinder import PathFinder
 
 class RRT(PathFinder):
     def __init__(

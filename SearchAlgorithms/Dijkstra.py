@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 
-from Colors import Colors
-from Grid import Grid
-from Node import Node
-from PathFinder import PathFinder
+from .Colors import Colors
+from .Grid import Grid
+from .Node import Node
+from .PathFinder import PathFinder
 
 class Dijkstra(PathFinder):
     def __init__(self, start: Node, goal: Node, grid: Grid) -> None:

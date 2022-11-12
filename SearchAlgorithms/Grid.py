@@ -2,8 +2,8 @@ from __future__ import annotations
 import numpy as np
 import random
 
-from Node import Node
-from Obstacle import Obstacle
+from .Node import Node
+from .Obstacle import Obstacle
 
 class Grid:
     def __init__(

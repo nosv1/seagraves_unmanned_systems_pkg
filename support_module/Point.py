@@ -17,6 +17,9 @@ class Point:
             self.y == other.y and 
             self.z == other.z
         )
+        
+    def key(self, round_to: int = 3) -> str:
+        return f"{self.x:.{round_to}f},{self.y:.{round_to}f},{self.z:.{round_to}f}"
 
     def distance_to(self, other: Point) -> float:
         dx: float = self.x - other.x
@@ -29,3 +32,14 @@ class Point:
         dy: float = other.y - self.y
         heading: float = atan2(dy, dx)
         return heading if heading >= 0 else heading + 2 * pi
+
+    def snap_to_grid(self, grid_spacing: float, round_up=True) -> Point:
+        if round_up:
+            x: float = grid_spacing * round(self.x / grid_spacing)
+            y: float = grid_spacing * round(self.y / grid_spacing)
+            z: float = grid_spacing * round(self.z / grid_spacing)
+        else:
+            x: float = grid_spacing * (self.x // grid_spacing)
+            y: float = grid_spacing * (self.y // grid_spacing)
+            z: float = grid_spacing * (self.z // grid_spacing)
+        return Point(x, y, z)
