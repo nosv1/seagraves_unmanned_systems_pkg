@@ -1,4 +1,4 @@
-#!usr/env/bin python3
+#!/usr/bin/env python3
 
 from __future__ import annotations
 
@@ -80,11 +80,13 @@ class Turtle(TurtleNode):
         return None
 
     def on_lidar_callback(self) -> None:
-        # get angle of closest object
-        # relative_angle: float = min(
-        #     self.detected_objects, key=lambda d_o: d_o.distance).angle)
-        relative_angle: float = mean([
-            d_o.angle for d_o in self.detected_objects])
+        relative_angle: float = self.yaw
+        closest_object = min(
+            self.detected_objects, 
+            key=lambda d_o: max(
+                s_p.distance for s_p in d_o.significant_points))
+        relative_angle = mean([
+            s_p.angle for s_p in closest_object.significant_points])
 
         self.PN.PN(
             new_los=relative_angle,
@@ -125,17 +127,19 @@ class Turtle(TurtleNode):
 def main() -> None:
     rclpy.init()
 
+    print("Initializing pursuer node...")
     pursuer: Turtle = Turtle(
         heading_PID=PID(kp=4.5, ki=0.0, kd=0.25),
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
         PN_gain=0.15,
-        namespace='',
+        namespace='turtlebot1',
         name="Pursuer")
 
     pursuer.throttle_PID = None
     pursuer.max_speed = 0.2
+    # pursuer.max_speed = 0.0
     pursuer.max_turn_rate = 1.0
 
     # for subscription in pursuer.subscriptions:
@@ -145,6 +149,7 @@ def main() -> None:
     #     elif subscription.topic_name == f"{pursuer.name}/clock":
     #         pursuer.subscriptions.remove(subscription)
 
+    print(f"Spinning {pursuer.name} ({pursuer.namespace=})...")
     while rclpy.ok():
         rclpy.spin_once(pursuer)
         pursuer.update()

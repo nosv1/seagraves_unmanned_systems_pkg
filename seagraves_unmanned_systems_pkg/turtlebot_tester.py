@@ -1,4 +1,4 @@
-#!usr/env/bin python3
+#!usr/bin/env python3
 
 from __future__ import annotations
 
@@ -85,8 +85,8 @@ class Turtle(TurtleNode):
         elif self.last_callback == self.__lidar_callback:
             self.on_lidar_callback()
 
-        elif self.last_callback == self.__occupancy_grid_callback:
-            self.on_occupancy_grid_callback()
+        # elif self.last_callback == self.__occupancy_grid_callback:
+        #     self.on_occupancy_grid_callback()
 
         return None
 
@@ -99,7 +99,7 @@ def main() -> None:
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        namespace='',
+        namespace='turtlebot1',
         name="Tester")
 
     tester.throttle_PID = None
@@ -120,8 +120,8 @@ def main() -> None:
         if degrees(tester.roll) > 1:
             break
 
-        if round(tester.sim_elapsed_time) % 10 == 0:
-            tester.dump_point_cloud(filename=f"{tester.name}_point_cloud.csv")
+        # if round(tester.sim_elapsed_time) % 10 == 0:
+        #     tester.dump_point_cloud(filename=f"{tester.name}_point_cloud.csv")
 
     tester.close_logs()
     tester.destroy_node()

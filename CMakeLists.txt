@@ -29,18 +29,20 @@ include_directories(include)
 
 # Install Python modules
 ament_python_install_package(support_module)
+ament_python_install_package(SearchAlgorithms)
 # Install Python executables
 install(PROGRAMS
-  # scripts/controller.py
+  seagraves_unmanned_systems_pkg/TagYourIt/evader.py
+  seagraves_unmanned_systems_pkg/TagYourIt/pursuer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()
 
 #launch
-install(DIRECTORY
-  turtlebot3_gazebo/launch
-  turtlebot3_gazebo/worlds
-  turtlebot3_gazebo/models
-  turtlebot3_gazebo/rviz
-  DESTINATION share/${PROJECT_NAME}
-)
+# install(DIRECTORY
+#   turtlebot3_gazebo/launch
+#   turtlebot3_gazebo/worlds
+#   turtlebot3_gazebo/models
+#   turtlebot3_gazebo/rviz
+#   DESTINATION share/${PROJECT_NAME}
+# )

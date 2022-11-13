@@ -1,4 +1,4 @@
-#!usr/env/bin python3
+#!/usr/bin/env python3
 
 from __future__ import annotations
 
@@ -188,13 +188,14 @@ def main() -> None:
     #     Waypoint(x=9, y=9, radius=0.1)
     # ]
 
+    print("Initializing node...")
     evader: Turtle = Turtle(
         heading_PID=PID(kp=4.5, ki=0.0, kd=0.25),
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
         waypoints=waypoints,
-        namespace='turtle',
+        namespace='turtlebot2',
         name="Evader")
 
     evader.throttle_PID = None
@@ -208,6 +209,7 @@ def main() -> None:
     #     elif subscription.topic_name == f"{pursuer.name}/clock":
     #         pursuer.subscriptions.remove(subscription)
 
+    print(f"Spinning {evader.name} ({evader.namespace=})...")
     while rclpy.ok():
         rclpy.spin_once(evader)
         evader.update()

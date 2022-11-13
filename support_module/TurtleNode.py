@@ -1,4 +1,4 @@
-#!usr/env/bin python3
+#!usr/bin/env python3
 
 # python imports
 from math import degrees, isinf, radians
@@ -14,7 +14,8 @@ from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import LaserScan
 
 # personal imports
-from support_module.DetectedObject import DetectedObject
+from support_module.DetectedObject import DetectedObject, detect_objects
+from support_module.LidarPoint import LidarPoint
 from support_module.Logger import Logger
 from support_module.Point import Point as support_module_Point
 
@@ -62,7 +63,7 @@ class Turtle(Node):
 
         self.check_topic_available(self.lidar_subscriber)
 
-        self.detected_objects: list[DetectedObject] = []
+        self.detected_objects: list[LidarPoint] = []
         self.lidar_dt = 0.0
 
         # # # occupancy grid # # # 
@@ -140,11 +141,11 @@ class Turtle(Node):
         self.set_time()
         self.lidar_dt = self.current_wall_time - self.previous_wall_time
 
-        self.detected_objects: list[DetectedObject] = []
+        lidar_points: list[LidarPoint] = []
         for i, distance in enumerate(msg.ranges):
             if not isinf(distance):
                 angle: float = radians(float(i if i < 180 else i - 360))
-                detected_object: DetectedObject = DetectedObject(
+                lidar_point: LidarPoint = LidarPoint(
                     distance=distance, 
                     angle=angle, 
                     current_position=support_module_Point(
@@ -152,7 +153,10 @@ class Turtle(Node):
                         y=self.position.y, 
                         z=0), 
                     current_yaw=self.yaw)
-                self.detected_objects.append(detected_object)
+                lidar_points.append(lidar_point)
+
+        if lidar_points:
+            self.detected_objects: list[DetectedObject] = detect_objects(lidar_points)
 
         self.lidar_logger.log([
             self.get_clock().now().nanoseconds / 1e9,
