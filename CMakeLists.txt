@@ -32,8 +32,8 @@ ament_python_install_package(support_module)
 ament_python_install_package(SearchAlgorithms)
 # Install Python executables
 install(PROGRAMS
-  seagraves_unmanned_systems_pkg/TagYourIt/evader.py
-  seagraves_unmanned_systems_pkg/TagYourIt/pursuer.py
+  seagraves_unmanned_systems_pkg/TagYoureIt/evader.py
+  seagraves_unmanned_systems_pkg/TagYoureIt/pursuer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 ament_package()

@@ -67,7 +67,7 @@ def detect_objects(
     *,
     distance_threshold: float = 0.3, 
     angle_threshold: float = 2.0,
-    max_skip_points: int = 5) -> list[DetectedObject]:
+    max_skip_points: int = 10) -> list[DetectedObject]:
     """ angle threshold is in degrees """
     detected_objects: list[DetectedObject] = []
 
