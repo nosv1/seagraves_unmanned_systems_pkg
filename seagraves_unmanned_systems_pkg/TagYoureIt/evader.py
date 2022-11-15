@@ -195,7 +195,7 @@ def main() -> None:
         max_speed=0.95,
         max_turn_rate=2.84,
         waypoints=waypoints,
-        namespace='turtlebot2',
+        namespace='turtle',
         name="Evader")
 
     evader.throttle_PID = None

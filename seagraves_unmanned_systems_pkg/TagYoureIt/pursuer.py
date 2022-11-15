@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # python imports
 from math import degrees, pi
+import numpy as np
 from numpy import mean
 
 # ros2 imports
@@ -44,7 +45,37 @@ class Turtle(TurtleNode):
             z=self.orientation.z,
             w=self.orientation.w
         )
+        
+        los = (np.array([self.evader_position.x, self.evader_position.y]) 
+            - np.array([self.position.x, self.position.y]))
+        los_as_radians = np.arctan2(los[1], los[0])
 
+        pursuer_velocity = (np.array([self.position.x, self.position.y]) 
+            - np.array([self.previous_position.x, self.previous_position.y]))
+        pursuer_position = np.array([self.position.x, self.position.y])
+        evader_velocity = (np.array([self.evader_position.x, self.evader_position.y])
+            - np.array([self.evader_previous_position.x, self.evader_previous_position.y]))
+        evader_position = np.array([self.evader_position.x, self.evader_position.y])
+        tmp = pursuer_position - evader_position
+        closing_velocity = -np.dot(
+            (pursuer_velocity - evader_velocity), 
+            tmp / np.linalg.norm(tmp))
+
+        self.PN.PN(
+            new_los=los_as_radians,
+            closing_velocity=closing_velocity,
+            dt=self.odom_dt,
+            current_heading=self.yaw
+        )
+        
+        # self.twist.angular.z = clamp(
+        #     self.PN.desired_heading_dot,
+        #     -self.max_turn_rate,
+        #     self.max_turn_rate
+        # )
+        # print(self.twist.angular.z)
+
+        # decide to turn left or right
         desired_heading = (
             self.PN.desired_heading - 2 * pi
             if self.PN.desired_heading - self.yaw > pi
@@ -56,6 +87,7 @@ class Turtle(TurtleNode):
                 desired=desired_heading, actual=self.yaw, dt=self.odom_dt
             ), -self.max_turn_rate, self.max_turn_rate
         )
+        print(f"desired heading: {degrees(desired_heading)}")
 
         if self.throttle_PID:
             distance_to: float = mean([
@@ -69,7 +101,7 @@ class Turtle(TurtleNode):
         else:
             self.twist.linear.x = self.max_speed
 
-        # self.move()
+        self.move()
 
         # self.heading_logger.log([
         #     self.get_clock().now().nanoseconds / 1e9, 
@@ -112,14 +144,14 @@ class Turtle(TurtleNode):
         return None
 
     def update(self) -> None:
-        if not self.detected_objects:
-            return None
+        # if not self.detected_objects:
+        #     return None
 
         if self.last_callback == self.__odom_callback:
             self.on_odom_callback()
 
-        elif self.last_callback == self.__lidar_callback:
-            self.on_lidar_callback()
+        # elif self.last_callback == self.__lidar_callback:
+        #     self.on_lidar_callback()
 
         return None
 
@@ -133,8 +165,8 @@ def main() -> None:
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        PN_gain=0.15,
-        namespace='turtlebot1',
+        PN_gain=700,
+        namespace='',
         name="Pursuer")
 
     pursuer.throttle_PID = None

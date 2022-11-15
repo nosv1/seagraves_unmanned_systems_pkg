@@ -17,13 +17,13 @@ class PN:
     def desired_heading(self) -> float:
         return self.__desired_heading
 
-    def PN(self, /, new_los: float, dt: float, current_yaw: float) -> None:
+    def PN(self, /, new_los: float, closing_velocity: float, dt: float, current_heading: float) -> None:
         self.__previous_los = self.__los
         self.__los = new_los
 
         if isnan(self.__previous_los):
             self.__desired_heading_dot = 0.0
-            self.__desired_heading = current_yaw
+            self.__desired_heading = current_heading
             return
 
         # how is this PN? isn't this just chasing not intercepting?
@@ -31,8 +31,15 @@ class PN:
         # self.__desired_heading_dot = (self.gain * new_los) / dt
 
         los_dot: float = (self.__los - self.__previous_los) / dt
-        self.__desired_heading_dot: float = self.gain * abs(los_dot)
-        self.__desired_heading = (current_yaw 
-            + (self.__desired_heading_dot 
-                * (-1 if los_dot < 0 else 1)
+        self.__desired_heading_dot: float = self.gain * los_dot
+        # self.__desired_heading = (current_heading 
+        #     + (self.__desired_heading_dot 
+        #         * (-1 if los_dot < 0 else 1)
+        #         * dt))
+
+        self.__desired_heading_dot = self.gain * los_dot * closing_velocity
+        self.__desired_heading = (current_heading
+            + (self.__desired_heading_dot
                 * dt))
+
+        return None

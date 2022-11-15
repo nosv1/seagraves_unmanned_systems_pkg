@@ -36,9 +36,18 @@ class Turtle(Node):
         self.odom_subscriber: Subscription = self.create_subscription(
             Odometry, f"{namespace}/odom", self.__odom_callback, 10)
 
+        # HACK PN TESTING
+        self.evader_odom_subscriber: Subscription = self.create_subscription(
+            Odometry, f"turtle/odom", self.__evader_odom_callback, 10)
+        self.evader_position: Point = Point()
+        self.evader_previous_position: Point = Point()
+        self.evader_orientation: Quaternion = Quaternion()
+        # HACK END PN TESTING
+
         self.check_topic_available(self.odom_subscriber)
 
         self.position: Point = Point()
+        self.previous_position: Point = Point()
         self.orientation: Quaternion = Quaternion()
         self.roll: float = 0.0
         self.pitch: float = 0.0
@@ -105,6 +114,7 @@ class Turtle(Node):
     def __odom_callback(self, msg: Odometry) -> None:
         self.last_callback = self.__odom_callback
 
+        self.previous_position = self.position
         self.position = Point(
             x=msg.pose.pose.position.x,
             y=msg.pose.pose.position.y
@@ -122,6 +132,14 @@ class Turtle(Node):
             degrees(self.pitch),
             degrees(self.yaw)
         ])
+
+    def __evader_odom_callback(self, msg: Odometry) -> None:
+        self.evader_previous_position = self.evader_position
+        self.evader_position = Point(
+            x=msg.pose.pose.position.x,
+            y=msg.pose.pose.position.y
+        )
+        self.evader_orientation = msg.pose.pose.orientation
 
     def __clock_callback(self, msg: Clock) -> None:
         self.last_callback = self.__clock_callback
