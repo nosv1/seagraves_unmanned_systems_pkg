@@ -139,6 +139,8 @@ class Turtle(Node):
 
     # HACK PN TESTTING
     def __evader_odom_callback(self, msg: Odometry) -> None:
+        self.last_callback = self.__evader_odom_callback
+        
         self.evader_previous_position = self.evader_position
         self.evader_position = Point(
             x=msg.pose.pose.position.x,

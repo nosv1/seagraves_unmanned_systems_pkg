@@ -44,7 +44,6 @@ class Turtle(TurtleNode):
         los = (np.array([self.evader_position.x, self.evader_position.y]) 
             - np.array([self.position.x, self.position.y]))
         los_as_radians = np.arctan2(los[1], los[0])
-        print(f"{degrees(los_as_radians)=}")
 
         pursuer_vector = (np.array([self.position.x, self.position.y]) 
             - np.array([self.previous_position.x, self.previous_position.y]))
@@ -76,6 +75,14 @@ class Turtle(TurtleNode):
         #     new_los=los_as_radians,
         #     dt=self.odom_dt
         # )
+
+        self.PN.PN(
+            evader_pos=self.evader_position,
+            puruser_pos=self.position,
+            dt=self.odom_dt,
+            current_heading=self.yaw
+        )
+        rotation_delta = self.PN.desired_heading_dot
         
         self.twist.angular.z = clamp(
             rotation_delta,
@@ -96,8 +103,6 @@ class Turtle(TurtleNode):
         #         desired=desired_heading, actual=self.yaw, dt=self.odom_dt
         #     ), -self.max_turn_rate, self.max_turn_rate
         # )
-        print(f"{degrees(desired_heading)=}")
-        print(f"{degrees(self.twist.angular.z)=}")
 
         if self.throttle_PID:
             distance_to: float = mean([
@@ -111,7 +116,7 @@ class Turtle(TurtleNode):
         else:
             self.twist.linear.x = self.max_speed
 
-        # self.move()
+        self.move()
 
         # self.heading_logger.log([
         #     self.get_clock().now().nanoseconds / 1e9, 
@@ -160,10 +165,10 @@ class Turtle(TurtleNode):
 
     def update(self) -> None:
         if self.last_callback == self.__odom_callback:
+            return
             self.on_odom_callback()
 
         elif self.last_callback == self.__lidar_callback:
-            return
             self.on_lidar_callback()
 
         return None
