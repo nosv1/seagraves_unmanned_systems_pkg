@@ -160,10 +160,10 @@ class Turtle(TurtleNode):
 
     def update(self) -> None:
         if self.last_callback == self.__odom_callback:
-            return
             self.on_odom_callback()
 
         elif self.last_callback == self.__lidar_callback:
+            return
             self.on_lidar_callback()
 
         return None
