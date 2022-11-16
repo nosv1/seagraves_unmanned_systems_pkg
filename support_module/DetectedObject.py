@@ -30,9 +30,9 @@ def detect_object(
         distance_diff: float = point_1.distance - point_2.distance
         angle_diff: float = min(
             abs(point_1.angle - point_2.angle),
-            abs(point_1.angle - (point_2.angle + 2*pi)))
+            abs(point_1.angle - (point_2.angle + 2*pi)))  # TODO this should be based on vector from the two points, not the angle from the lidar
         significant_distance: bool = distance_diff > distnace_threshold
-        significant_angle: bool = degrees(angle_diff) > angle_threshold
+        significant_angle: bool = degrees(angle_diff) > angle_threshold  
         # return significant_distance or significant_angle
         return significant_distance
 
@@ -43,15 +43,20 @@ def detect_object(
 
     if starting_index == 0:
         # look right
-        for i in range(starting_index - 1, -len(points), -1):
+        significant_points: list[LidarPoint] = []
+        for i in range(starting_index, -len(points), -1):
             if is_significant_difference(points[i], points[i+1]):
-                detected_object.significant_points.append(points[i+1])
+                significant_points.append(points[i])
                 break
 
+        if not significant_points:
+            detected_object.significant_points.append(points[i])
+
     # look left
+    significant_points: list[LidarPoint] = []
     for i in range(starting_index + 1, len(points)):
         if is_significant_difference(points[i], points[i-1]):
-            detected_object.significant_points.append(points[i-1])
+            significant_points.append(points[i])
             significant_index = i
             break
 
@@ -59,6 +64,10 @@ def detect_object(
             detected_object.significant_points.append(points[i])
             significant_index = i + 1 if i < len(points) - 1 else 0
             break
+
+    if not significant_points:
+        detected_object.significant_points.append(points[len(points) - 1])
+        significant_index = len(points) - 1
 
     return detected_object, significant_index
 
@@ -73,6 +82,7 @@ def detect_objects(
 
     if len(points) <= 1:
         detected_objects.append(DetectedObject(significant_points=points))
+        return detected_objects
 
     starting_indexes = {0}
     queue = [0]
