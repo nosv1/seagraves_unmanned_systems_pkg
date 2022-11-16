@@ -124,6 +124,11 @@ class Turtle(Node):
             y=msg.pose.pose.position.y
         )
         self.orientation = msg.pose.pose.orientation
+        self.roll, self.pitch, self.yaw = euler_from_quaternion(
+            self.orientation.x, 
+            self.orientation.y, 
+            self.orientation.z, 
+            self.orientation.w)
         self.set_time()
         self.odom_dt = self.current_wall_time - self.previous_wall_time
 
@@ -140,7 +145,7 @@ class Turtle(Node):
     # HACK PN TESTTING
     def __evader_odom_callback(self, msg: Odometry) -> None:
         self.last_callback = self.__evader_odom_callback
-        
+
         self.evader_previous_position = self.evader_position
         self.evader_position = Point(
             x=msg.pose.pose.position.x,
