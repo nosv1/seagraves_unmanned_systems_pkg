@@ -39,55 +39,65 @@ class Turtle(TurtleNode):
         self.PN = PN(gain=PN_gain)
 
     def on_odom_callback(self) -> None:
-        self.roll, self.pitch, self.yaw = euler_from_quaternion(
-            x=self.orientation.x,
-            y=self.orientation.y,
-            z=self.orientation.z,
-            w=self.orientation.w
-        )
+        print(f"----------------------------------------")
         
         los = (np.array([self.evader_position.x, self.evader_position.y]) 
             - np.array([self.position.x, self.position.y]))
         los_as_radians = np.arctan2(los[1], los[0])
+        print(f"{degrees(los_as_radians)=}")
 
-        pursuer_velocity = (np.array([self.position.x, self.position.y]) 
+        pursuer_vector = (np.array([self.position.x, self.position.y]) 
             - np.array([self.previous_position.x, self.previous_position.y]))
+        pursuer_velocity = np.linalg.norm(pursuer_vector) / self.odom_dt
         pursuer_position = np.array([self.position.x, self.position.y])
-        evader_velocity = (np.array([self.evader_position.x, self.evader_position.y])
-            - np.array([self.evader_previous_position.x, self.evader_previous_position.y]))
-        evader_position = np.array([self.evader_position.x, self.evader_position.y])
-        tmp = pursuer_position - evader_position
-        closing_velocity = -np.dot(
-            (pursuer_velocity - evader_velocity), 
-            tmp / np.linalg.norm(tmp))
+        pursuer_heading = np.arctan2(pursuer_vector[1], pursuer_vector[0])
 
-        self.PN.PN(
-            new_los=los_as_radians,
-            closing_velocity=closing_velocity,
-            dt=self.odom_dt,
-            current_heading=self.yaw
-        )
-        
-        # self.twist.angular.z = clamp(
-        #     self.PN.desired_heading_dot,
-        #     -self.max_turn_rate,
-        #     self.max_turn_rate
+        evader_vector = (np.array([self.evader_position.x, self.evader_position.y])
+            - np.array([self.evader_previous_position.x, self.evader_previous_position.y]))
+        evader_velocity = np.linalg.norm(evader_vector) / self.odom_dt
+        evader_position = np.array([self.evader_position.x, self.evader_position.y])
+        evader_heading = np.arctan2(evader_vector[1], evader_vector[0])
+
+        previous_los = (np.array([self.evader_previous_position.x, self.evader_previous_position.y])
+            - np.array([self.previous_position.x, self.previous_position.y]))
+        previous_los_as_radians = np.arctan2(previous_los[1], previous_los[0])
+
+        los = (np.array([self.evader_position.x, self.evader_position.y])
+            - np.array([self.position.x, self.position.y]))
+        los_as_radians = np.arctan2(los[1], los[0])
+
+        los_delta = los_as_radians - previous_los_as_radians
+
+        rotation_delta = self.PN.gain * los_delta
+        desired_heading = pursuer_heading + rotation_delta
+        rotation_delta /= self.odom_dt
+
+        # self.PN.PN(
+        #     new_los=los_as_radians,
+        #     dt=self.odom_dt
         # )
-        # print(self.twist.angular.z)
+        
+        self.twist.angular.z = clamp(
+            rotation_delta,
+            -self.max_turn_rate,
+            self.max_turn_rate
+        )
+        # print(f"{self.twist.angular.z=}")
 
         # decide to turn left or right
-        desired_heading = (
-            self.PN.desired_heading - 2 * pi
-            if self.PN.desired_heading - self.yaw > pi
-            else self.PN.desired_heading
-        )
+        # desired_heading = (
+        #     desired_heading - 2 * pi
+        #     if desired_heading - self.yaw > pi
+        #     else desired_heading
+        # )
 
-        self.twist.angular.z = clamp(
-            self.heading_PID.update(
-                desired=desired_heading, actual=self.yaw, dt=self.odom_dt
-            ), -self.max_turn_rate, self.max_turn_rate
-        )
-        print(f"desired heading: {degrees(desired_heading)}")
+        # self.twist.angular.z = clamp(
+        #     self.heading_PID.update(
+        #         desired=desired_heading, actual=self.yaw, dt=self.odom_dt
+        #     ), -self.max_turn_rate, self.max_turn_rate
+        # )
+        print(f"{degrees(desired_heading)=}")
+        print(f"{degrees(self.twist.angular.z)=}")
 
         if self.throttle_PID:
             distance_to: float = mean([
@@ -101,7 +111,7 @@ class Turtle(TurtleNode):
         else:
             self.twist.linear.x = self.max_speed
 
-        self.move()
+        # self.move()
 
         # self.heading_logger.log([
         #     self.get_clock().now().nanoseconds / 1e9, 
@@ -112,26 +122,31 @@ class Turtle(TurtleNode):
         return None
 
     def on_lidar_callback(self) -> None:
-        relative_angle: float = self.yaw
+        if not self.detected_objects:
+            return None
+
         closest_object = min(
             self.detected_objects, 
             key=lambda d_o: max(
                 s_p.distance for s_p in d_o.significant_points))
-        relative_angle = mean([
-            s_p.angle for s_p in closest_object.significant_points])
+        closest_point = min(
+                closest_object.significant_points, 
+                key=lambda s_p: s_p.distance).point 
 
         self.PN.PN(
-            new_los=relative_angle,
+            evader_pos=closest_point,
+            puruser_pos=self.position,
             dt=self.lidar_dt,
-            current_yaw=self.yaw
+            current_heading=self.yaw
         )
         
         self.twist.angular.z = clamp(
-            self.PN.desired_heading_dot
-                * (-1 if relative_angle < 0 else 1),
+            self.PN.desired_heading_dot,
             -self.max_turn_rate,
             self.max_turn_rate
         )
+        print(f"{self.evader_position=}")
+        print(f"{closest_point.x=}, {closest_point.y=}")
         self.twist.linear.x = self.max_speed
         self.move()
 
@@ -144,14 +159,12 @@ class Turtle(TurtleNode):
         return None
 
     def update(self) -> None:
-        # if not self.detected_objects:
-        #     return None
-
         if self.last_callback == self.__odom_callback:
+            return
             self.on_odom_callback()
 
-        # elif self.last_callback == self.__lidar_callback:
-        #     self.on_lidar_callback()
+        elif self.last_callback == self.__lidar_callback:
+            self.on_lidar_callback()
 
         return None
 
@@ -165,7 +178,7 @@ def main() -> None:
         throttle_PID=PID(kp=0.2, ki=0.0, kd=0.02),
         max_speed=0.95,
         max_turn_rate=2.84,
-        PN_gain=700,
+        PN_gain=5,
         namespace='',
         name="Pursuer")
 

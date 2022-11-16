@@ -18,6 +18,7 @@ from support_module.DetectedObject import DetectedObject, detect_objects
 from support_module.LidarPoint import LidarPoint
 from support_module.Logger import Logger
 from support_module.Point import Point as support_module_Point
+from support_module.quaternion_tools import euler_from_quaternion
 
 class Turtle(Node):
     def __init__(self, namespace='', name='Turtle') -> None:
@@ -42,6 +43,9 @@ class Turtle(Node):
         self.evader_position: Point = Point()
         self.evader_previous_position: Point = Point()
         self.evader_orientation: Quaternion = Quaternion()
+        self.evader_roll: float = 0.0
+        self.evader_pitch: float = 0.0
+        self.evader_yaw: float = 0.0
         # HACK END PN TESTING
 
         self.check_topic_available(self.odom_subscriber)
@@ -133,6 +137,7 @@ class Turtle(Node):
             degrees(self.yaw)
         ])
 
+    # HACK PN TESTTING
     def __evader_odom_callback(self, msg: Odometry) -> None:
         self.evader_previous_position = self.evader_position
         self.evader_position = Point(
@@ -140,6 +145,13 @@ class Turtle(Node):
             y=msg.pose.pose.position.y
         )
         self.evader_orientation = msg.pose.pose.orientation
+        self.evader_row, self.evader_pich, self.evader_yaw = euler_from_quaternion(
+            x=self.orientation.x,
+            y=self.orientation.y,
+            z=self.orientation.z,
+            w=self.orientation.w
+        )
+    # END HACK PN TESTING
 
     def __clock_callback(self, msg: Clock) -> None:
         self.last_callback = self.__clock_callback

@@ -12,7 +12,7 @@ class LidarPoint:
     def __str__(self):
         return f"Range: {self.distance}, Angle: {self.angle}"
 
-    def calculate_2d_point(self, current_position: Point, current_yaw: float):
+    def calculate_2d_point(self, current_position: Point):
         x = self.distance * np.cos(self.angle)
         y = self.distance * np.sin(self.angle)
         z=0

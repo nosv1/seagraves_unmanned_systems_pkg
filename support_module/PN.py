@@ -1,4 +1,7 @@
 from math import degrees, isnan, pi
+from numpy import arctan2, array, ndarray
+
+from .Point import Point
 
 class PN:
     def __init__(self, gain: float = 1.0) -> None:
@@ -17,29 +20,22 @@ class PN:
     def desired_heading(self) -> float:
         return self.__desired_heading
 
-    def PN(self, /, new_los: float, closing_velocity: float, dt: float, current_heading: float) -> None:
+    def PN(self, /, evader_pos: Point, puruser_pos: Point, dt: float, current_heading: float) -> None:
+        los_vector = Point(*(
+            array([evader_pos.x, evader_pos.y, evader_pos.z])
+            - array([puruser_pos.x, puruser_pos.y, puruser_pos.z])),
+        )
         self.__previous_los = self.__los
-        self.__los = new_los
+        self.__los = arctan2(los_vector.y, los_vector.x)
+        # TODO consider when we lose track of target for an iteration...
 
-        if isnan(self.__previous_los):
+        if isnan(self.__previous_los):  # first time through
             self.__desired_heading_dot = 0.0
             self.__desired_heading = current_heading
             return
 
-        # how is this PN? isn't this just chasing not intercepting?
-        # how is this different to just setting the desired heading for a PID to be the LOS?
-        # self.__desired_heading_dot = (self.gain * new_los) / dt
-
-        los_dot: float = (self.__los - self.__previous_los) / dt
-        self.__desired_heading_dot: float = self.gain * los_dot
-        # self.__desired_heading = (current_heading 
-        #     + (self.__desired_heading_dot 
-        #         * (-1 if los_dot < 0 else 1)
-        #         * dt))
-
-        self.__desired_heading_dot = self.gain * los_dot * closing_velocity
-        self.__desired_heading = (current_heading
-            + (self.__desired_heading_dot
-                * dt))
+        los_delta: float = self.__los - self.__previous_los
+        self.__desired_heading_dot = (self.gain * los_delta) / dt
+        self.__desired_heading = current_heading + (self.__desired_heading_dot * dt)
 
         return None
