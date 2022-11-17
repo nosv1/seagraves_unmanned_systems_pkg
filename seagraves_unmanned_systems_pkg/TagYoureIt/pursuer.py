@@ -39,12 +39,10 @@ class Turtle(TurtleNode):
         self.PN = PN(gain=PN_gain)
 
     def on_odom_callback(self) -> None:
-        print(f"----------------------------------------")
         
         los = (np.array([self.evader_position.x, self.evader_position.y]) 
             - np.array([self.position.x, self.position.y]))
         los_as_radians = np.arctan2(los[1], los[0])
-        print(f"{degrees(los_as_radians)=}")
 
         pursuer_vector = (np.array([self.position.x, self.position.y]) 
             - np.array([self.previous_position.x, self.previous_position.y]))
@@ -69,6 +67,7 @@ class Turtle(TurtleNode):
         los_delta = los_as_radians - previous_los_as_radians
 
         rotation_delta = self.PN.gain * los_delta
+        print(f"{rotation_delta=}")
         desired_heading = pursuer_heading + rotation_delta
         rotation_delta /= self.odom_dt
 
@@ -76,28 +75,34 @@ class Turtle(TurtleNode):
         #     new_los=los_as_radians,
         #     dt=self.odom_dt
         # )
+
+        self.PN.PN(
+            evader_pos=self.evader_position,
+            puruser_pos=self.position,
+            dt=self.odom_dt,
+            current_heading=self.yaw
+        )
+        rotation_delta = self.PN.desired_heading_dot
         
         self.twist.angular.z = clamp(
             rotation_delta,
             -self.max_turn_rate,
             self.max_turn_rate
         )
-        # print(f"{self.twist.angular.z=}")
 
         # decide to turn left or right
-        # desired_heading = (
-        #     desired_heading - 2 * pi
-        #     if desired_heading - self.yaw > pi
-        #     else desired_heading
-        # )
+        desired_heading = self.PN.desired_heading
+        desired_heading = (
+            desired_heading - 2 * pi
+            if desired_heading - self.yaw > pi
+            else desired_heading
+        )
 
-        # self.twist.angular.z = clamp(
-        #     self.heading_PID.update(
-        #         desired=desired_heading, actual=self.yaw, dt=self.odom_dt
-        #     ), -self.max_turn_rate, self.max_turn_rate
-        # )
-        print(f"{degrees(desired_heading)=}")
-        print(f"{degrees(self.twist.angular.z)=}")
+        self.twist.angular.z = clamp(
+            self.heading_PID.update(
+                desired=desired_heading, actual=self.yaw, dt=self.odom_dt
+            ), -self.max_turn_rate, self.max_turn_rate
+        )
 
         if self.throttle_PID:
             distance_to: float = mean([
@@ -110,8 +115,13 @@ class Turtle(TurtleNode):
 
         else:
             self.twist.linear.x = self.max_speed
+            
+        print(f"{self.twist.angular.z=}")
+        print(f"{self.yaw=}")
+        print(f"{self.PN.desired_heading=}")
+        print(f"-------------------")
 
-        # self.move()
+        self.move()
 
         # self.heading_logger.log([
         #     self.get_clock().now().nanoseconds / 1e9, 
@@ -160,10 +170,10 @@ class Turtle(TurtleNode):
 
     def update(self) -> None:
         if self.last_callback == self.__odom_callback:
-            return
             self.on_odom_callback()
 
         elif self.last_callback == self.__lidar_callback:
+            return
             self.on_lidar_callback()
 
         return None

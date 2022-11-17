@@ -29,7 +29,7 @@ class PN:
         self.__los = arctan2(los_vector.y, los_vector.x)
         # TODO consider when we lose track of target for an iteration...
 
-        if isnan(self.__previous_los):  # first time through
+        if isnan(self.__los): # first time through
             self.__desired_heading_dot = 0.0
             self.__desired_heading = current_heading
             return
